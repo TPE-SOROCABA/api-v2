@@ -9,7 +9,7 @@ services:
       resources:
         limits:
           cpus: '0.2'
-          memory: 512M
+          memory: 1G
     environment:
       - PORT=7000
     ports:
