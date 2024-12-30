@@ -12,7 +12,7 @@ services:
           memory: 1G
     environment:
       - PORT=7000
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=$DATABASE_URL
     ports:
       - "7000:7000"
     networks:
