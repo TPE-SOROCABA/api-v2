@@ -1,4 +1,4 @@
-import { Controller, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PDFService } from './pdf.service';
 import { diskStorage } from 'multer';
@@ -8,6 +8,7 @@ import { Response } from 'express';
 @Controller('pdf')
 export class PDFController {
     constructor(private readonly pdfService: PDFService) { }
+    // configurar aceitar apenas arquivos PDF
     @Post('upload')
     @UseInterceptors(
         FileInterceptor('file', {
@@ -19,6 +20,12 @@ export class PDFController {
                     callback(null, `${uniqueSuffix}${fileExtName}`);
                 },
             }),
+            fileFilter: (req, file, callback) => {
+                if (file.mimetype !== 'application/pdf') {
+                    return callback(new BadRequestException('Apenas arquivos PDF são aceitos'), false);
+                }
+                callback(null, true);
+            },
         }),
     )
     async uploadFile(@UploadedFile() file: Express.Multer.File, @Res() res: Response) {
