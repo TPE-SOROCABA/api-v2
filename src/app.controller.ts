@@ -18,7 +18,7 @@ export class AppController {
     }[];
 
     return {
-      message: `[${new Date().toISOString()}] - [${process.env.INSTANCE_ID}] - O servidor está em execução - Produção!`,
+      message: `[${new Date().toISOString()}] - O servidor está em execução - Produção!`,
       database_info: {
         active: +countActive.toString(),
         idle: +countIdle.toString(),
