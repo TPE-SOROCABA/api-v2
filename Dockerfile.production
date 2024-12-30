@@ -1,12 +1,16 @@
-# Use a imagem Node.js leve e otimizada para produção
-FROM node:22 as builder
+# Etapa de build
+FROM node:22-alpine as builder
 
 WORKDIR /app
 
-# Copie apenas os arquivos necessários para instalar as dependências
+# Instale GraphicsMagick e dependências necessárias
+RUN apk add --no-cache \
+    graphicsmagick
+
+# Copie os arquivos necessários para instalar as dependências
 COPY package*.json ./
 
-# Instale as dependências de desenvolvimento
+# Instale dependências
 RUN npm ci --quiet
 
 # Copie o código fonte para a imagem
@@ -15,16 +19,21 @@ COPY . .
 # Execute o comando de build
 RUN npm run build
 
-# Use uma imagem base mais leve para executar o aplicativo
-FROM node:22-slim
+# Etapa final para produção
+FROM node:22-alpine
+
 WORKDIR /app
 
-# Copy only necessary files from the builder stage
+# Instale GraphicsMagick e dependências necessárias
+RUN apk add --no-cache \
+    graphicsmagick
+
+# Copie os arquivos necessários para rodar a aplicação
 COPY --from=builder /app/dist ./dist
 COPY package*.json ./
 
-# Install production dependencies (excluding devDependencies)
+# Instale apenas dependências de produção
 RUN npm ci --only=prod --quiet
 
-# Defina o comando de inicialização para o aplicativo em produção
+# Comando de inicialização
 CMD [ "npm", "run", "start:prod" ]
