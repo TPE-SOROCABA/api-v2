@@ -31,6 +31,7 @@ COPY package*.json ./
 
 # Instale apenas dependências de produção
 RUN npm ci --only=prod --quiet
-
+RUN apt-get update -y && apt-get install -y openssl
+RUN npx prisma generate
 # Comando de inicialização
 CMD [ "npm", "run", "start:prod" ]

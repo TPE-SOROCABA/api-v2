@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
 import { PDFModule } from './V1/pdf/pdf.module';
+import { PrismaService } from './infra/prisma.service';
 
 @Module({
   imports: [PDFModule],
@@ -14,6 +15,7 @@ import { PDFModule } from './V1/pdf/pdf.module';
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
+    PrismaService
   ],
 })
 export class AppModule {}

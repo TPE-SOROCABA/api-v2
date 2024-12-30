@@ -1,0 +1,256 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ParticipantProfile {
+  COORDINATOR
+  ASSISTANT_COORDINATOR
+  CAPTAIN
+  ASSISTANT_CAPTAIN
+  PARTICIPANT
+  ADMIN_ANALYST
+}
+
+enum IncidentStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+  IGNORED
+}
+
+enum Weekday {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+enum DesignationStatus {
+  OPEN
+  CANCELLED
+  IN_PROGRESS
+  CLOSED
+  ARCHIVED
+}
+
+enum EventStatus {
+  OPEN
+  CLOSED
+}
+
+enum EventType {
+  RECURRING
+  SPECIAL
+  ADDITIONAL
+}
+
+enum ParticipantSex {
+  MALE
+  FEMALE
+}
+
+model Participants {
+  id                  String              @id @default(uuid())
+  name                String
+  cpf                 String?             @unique
+  email               String?             @unique
+  phone               String              @unique
+  profile_photo       String?
+  profile             ParticipantProfile  @default(PARTICIPANT)
+  computed            String?
+  sex                 ParticipantSex
+  Auth                Auth?
+  IncidentParticipant IncidentHistories[] @relation("ParticipantRelation")
+  IncidentReporter    IncidentHistories[] @relation("ReporterRelation")
+
+  AssignmentsParticipants AssignmentsParticipants[]
+  ParticipantsGroup       ParticipantsGroups[]
+  Groups                  Groups[]
+
+  @@map("participants")
+}
+
+model ParticipantsGroups {
+  id            String       @id @default(uuid())
+  participant   Participants @relation(fields: [participantId], references: [id])
+  participantId String       @map("participant_id")
+  group         Groups       @relation(fields: [groupId], references: [id])
+  groupId       String       @map("group_id")
+
+  @@map("participants_groups")
+}
+
+model Auth {
+  id                String    @id @default(uuid())
+  password          String
+  resetPasswordCode String?   @map("reset_password_code")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  expiredAt         DateTime? @map("expired_at")
+
+  participant   Participants @relation(fields: [participantId], references: [id])
+  participantId String       @unique @map("participant_id")
+
+  @@map("auths")
+}
+
+model IncidentHistories {
+  id            String       @id @default(uuid())
+  participant   Participants @relation("ParticipantRelation", fields: [participantId], references: [id])
+  participantId String       @map("participant_id")
+  reporter      Participants @relation("ReporterRelation", fields: [reporterId], references: [id])
+  reporterId    String       @map("reporter_id")
+  designation   Designations @relation(fields: [designationId], references: [id])
+  designationId String       @map("designation_id")
+
+  reason    String
+  status    IncidentStatus
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  @@unique([participantId, designationId])
+  @@map("incident_histories")
+}
+
+model Point {
+  id                   String                 @id @default(uuid())
+  name                 String
+  locationPhoto        String?                @map("location_photo")
+  PointPublicationCart PointPublicationCart[]
+  Assignments          Assignments[]
+
+  @@map("points")
+}
+
+model PublicationCart {
+  id                         String                       @id @default(uuid())
+  name                       String
+  description                String?
+  themePhoto                 String?                      @map("theme_photo")
+  PointPublicationCart       PointPublicationCart[]
+  AssignmentsPublicationCart AssignmentsPublicationCart[]
+
+  @@map("publication_carts")
+}
+
+model PointPublicationCart {
+  id                String          @id @default(uuid())
+  point             Point           @relation(fields: [pointId], references: [id])
+  pointId           String          @map("point_id")
+  publicationCarts  PublicationCart @relation(fields: [publicationCartId], references: [id])
+  publicationCartId String          @map("publication_cart_id")
+
+  minParticipants Int     @map("min_participants")
+  maxParticipants Int     @map("max_participants")
+  group           Groups  @relation(fields: [groupId], references: [id])
+  groupId         String  @map("group_id")
+  status          Boolean
+
+  @@map("point_publication_carts")
+}
+
+model Groups {
+  id                String  @id @default(uuid())
+  name              String
+  config_max        Int     @map("config_max")
+  config_min        Int     @map("config_min")
+  config_start_hour String  @map("config_start_hour")
+  config_end_hour   String  @map("config_end_hour")
+  config_weekday    Weekday @map("config_weekday")
+
+  coordinator   Participants? @relation(fields: [coordinatorId], references: [id])
+  coordinatorId String?       @map("coordinator_id")
+
+  Designations         Designations[]
+  ParticipantsGroup    ParticipantsGroups[]
+  EventDayGroup        EventDayGroups[]
+  PointPublicationCart PointPublicationCart[]
+
+  @@map("groups")
+}
+
+model EventDay {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  type        EventType
+  status      EventStatus
+  weekday     Weekday
+
+  EventDayGroup EventDayGroups[]
+
+  @@map("event_days")
+}
+
+model EventDayGroups {
+  id         String   @id @default(uuid())
+  eventDay   EventDay @relation(fields: [eventDayId], references: [id])
+  eventDayId String   @map("event_day_id")
+  group      Groups   @relation(fields: [groupId], references: [id])
+  groupId    String   @map("group_id")
+
+  @@map("event_days_groups")
+}
+
+model Designations {
+  id                        String            @id @default(uuid())
+  name                      String
+  group                     Groups            @relation(fields: [groupId], references: [id])
+  groupId                   String            @map("group_id")
+  status                    DesignationStatus
+  createdAt                 DateTime          @default(now()) @map("created_at")
+  updatedAt                 DateTime          @updatedAt @map("updated_at")
+  designationDate           DateTime          @default(now()) @map("designation_date")
+  designationEndDate        DateTime          @default(now()) @map("designation_end_date")
+  mandatoryPresence         Boolean           @default(true) @map("mandatory_presence")
+  cancellationJustification String?           @map("cancellation_justification")
+
+  assignments       Assignments[]
+  IncidentHistories IncidentHistories[]
+
+  @@map("designations")
+}
+
+model AssignmentsParticipants {
+  id            String       @id @default(uuid())
+  assignment    Assignments  @relation(fields: [assignmentId], references: [id])
+  assignmentId  String       @map("assignment_id")
+  participant   Participants @relation(fields: [participantId], references: [id])
+  participantId String       @map("participant_id")
+
+  @@map("assignments_participants")
+}
+
+model AssignmentsPublicationCart {
+  id                String          @id @default(uuid())
+  assignment        Assignments     @relation(fields: [assignmentId], references: [id])
+  assignmentId      String          @map("assignment_id")
+  publicationCart   PublicationCart @relation(fields: [publicationCartId], references: [id])
+  publicationCartId String          @map("publication_cart_id")
+
+  @@map("assignments_publication_carts")
+}
+
+model Assignments {
+  id      String @id @default(uuid())
+  point   Point  @relation(fields: [pointId], references: [id])
+  pointId String @map("point_id")
+
+  config_min                 Int                          @map("config_min")
+  config_max                 Int                          @map("config_max")
+  config_status              Boolean                      @map("config_status")
+  Designations               Designations                 @relation(fields: [designationsId], references: [id])
+  designationsId             String                       @map("designations_id")
+  AssignmentsParticipants    AssignmentsParticipants[]
+  AssignmentsPublicationCart AssignmentsPublicationCart[]
+
+  @@map("assignments")
+}
