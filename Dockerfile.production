@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # Etapa final para produção
-FROM node:22-alpine
+FROM node:22-slim
 
 WORKDIR /app
 
