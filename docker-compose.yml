@@ -1,0 +1,23 @@
+version: '3.5'
+
+services:
+  tpe-prod:
+    image: wfelipe2011/tpe-prod:master
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 1G
+    environment:
+      - PORT=$PORT
+    networks:
+      - npm_public
+
+volumes:
+  tpe-prod:
+
+networks:
+  npm_public:
+    external: true
