@@ -3,11 +3,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
-import { PDFModule } from './V1/pdf/pdf.module';
+import { PetitionModule } from './V1/petition/petition.module';
 import { PrismaService } from './infra/prisma.service';
 
 @Module({
-  imports: [PDFModule],
+  imports: [PetitionModule],
   controllers: [AppController],
   providers: [
     AppService,

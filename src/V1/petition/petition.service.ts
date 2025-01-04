@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
-export class PDFService {
+export class PetitionService {
     async convertPdfToImages(pdfPath: string): Promise<string[]> {
         await this.validatePdf(pdfPath, 'UBLICO ESPECIAL');
         const outputDir = path.join(__dirname, '..', '..', 'output');

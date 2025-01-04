@@ -1,13 +1,13 @@
 import { BadRequestException, Controller, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PDFService } from './pdf.service';
+import { PetitionService } from './petition.service';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Response } from 'express';
 
-@Controller('pdf')
-export class PDFController {
-    constructor(private readonly pdfService: PDFService) { }
+@Controller('petitions')
+export class PetitionController {
+    constructor(private readonly pdfService: PetitionService) { }
     // configurar aceitar apenas arquivos PDF
     @Post('upload')
     @UseInterceptors(
@@ -45,6 +45,5 @@ export class PDFController {
 
         // Envia a imagem como resposta
         res.end(imageBuffer);
-
     }
 }
