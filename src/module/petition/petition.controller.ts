@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PetitionService } from './petition.service';
+import { PetitionService } from './convert-pdf-to-images.usecase';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Response } from 'express';
