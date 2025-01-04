@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { PetitionService } from './petition.service';
+import { ConvertPdfToImagesUseCase } from './convert-pdf-to-images.usecase';
 import { PetitionController } from './petition.controller';
 
 @Module({
-  providers: [PetitionService],
+  providers: [ConvertPdfToImagesUseCase],
   controllers: [PetitionController]
 })
 export class PetitionModule {}
