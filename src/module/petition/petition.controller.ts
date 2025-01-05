@@ -1,14 +1,13 @@
 import { BadRequestException, Controller, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PetitionService } from './convert-pdf-to-images.usecase';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { Response } from 'express';
+import { PetitionService } from './petition.service';
 
 @Controller('petitions')
 export class PetitionController {
-    constructor(private readonly pdfService: PetitionService) { }
-    // configurar aceitar apenas arquivos PDF
+    constructor(private readonly petitionService: PetitionService) { }
+
     @Post('upload')
     @UseInterceptors(
         FileInterceptor('file', {
@@ -28,22 +27,7 @@ export class PetitionController {
             },
         }),
     )
-    async uploadFile(@UploadedFile() file: Express.Multer.File, @Res() res: Response) {
-        console.log(`Received file ${file.originalname}`);
-        const output = await this.pdfService.convertPdfToImages(file.path);
-        // return binary data
-        const fs = require('fs');
-        // Lê o arquivo de imagem gerado e retorna como resposta
-        const imagePath = output[0];  // Supondo que a conversão gere um array com caminhos das imagens.
-
-        const imageBuffer = fs.readFileSync(imagePath);  // Lê o conteúdo do arquivo da imagem
-
-        res.set({
-            'Content-Type': 'image/png',  // Ajuste o tipo da imagem, pode ser 'image/jpeg' ou outro
-            'Content-Length': imageBuffer.length,
-        });
-
-        // Envia a imagem como resposta
-        res.end(imageBuffer);
+    async uploadFile(@UploadedFile() file: Express.Multer.File) {
+        return this.petitionService.uploadFile(file);
     }
 }

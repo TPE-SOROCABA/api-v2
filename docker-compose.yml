@@ -13,6 +13,11 @@ services:
     environment:
       - PORT=7000
       - DATABASE_URL=$DATABASE_URL
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+      - AWS_REGION=$AWS_REGION
+      - NODE_ENV=$NODE_ENV
+      - CLOUDFRONT_PETITION_URL=$CLOUDFRONT_PETITION_URL
     ports:
       - "7000:7000"
     networks:

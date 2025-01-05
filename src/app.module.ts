@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
-import { PetitionModule } from './V1/petition/petition.module';
+import { PetitionModule } from './module/petition/petition.module';
 import { PrismaService } from './infra/prisma.service';
 
 @Module({
