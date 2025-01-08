@@ -196,6 +196,18 @@ model Assignments {
   @@map("assignments")
 }
 
+model Petitions {
+  id         String         @id @default(uuid())
+  protocol   String         @unique
+  status     PetitionStatus @default(CREATED)
+  publicUrl  String         @map("public_url")
+  privateUrl String         @map("private_url")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  @@map("petitions") 
+}
+
 enum ParticipantProfile {
   COORDINATOR
   ASSISTANT_COORDINATOR
@@ -249,5 +261,8 @@ enum ParticipantSex {
 enum PetitionStatus {
   CREATED
   WAITING_INFORMATION
-  COMPLETE
+  WAITING
+  ACTIVE
+  SUSPENDED
+  EXCLUDED
 }
