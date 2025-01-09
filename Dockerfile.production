@@ -9,10 +9,10 @@ COPY package*.json ./
 
 # Instale dependências
 RUN npm ci --quiet
+RUN npx prisma generate
 
 # Copie o código fonte para a imagem
 COPY . .
-
 # Execute o comando de build
 RUN npm run build
 
