@@ -13,6 +13,7 @@ import {
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
 import { CivilStatus, ParticipantSex } from "@prisma/client";
+import { BadRequestException } from "@nestjs/common";
 
 export class CreateParticipantDto {
     // Pessoal
@@ -23,6 +24,20 @@ export class CreateParticipantDto {
     @IsNotEmpty({ message: 'Campo data de nascimento é obrigatório' })
     @Type(() => Date)
     @IsDate({ message: 'Campo data de nascimento deve ser uma data válida' })
+    @Transform(({ value }) => {
+        const date = new Date(value);
+        const today = new Date();
+        const age = today.getFullYear() - date.getFullYear();
+        const monthDiff = today.getMonth() - date.getMonth();
+        const dayDiff = today.getDate() - date.getDate();
+        if (date > today) {
+            throw new Error('Campo data de nascimento não pode ser uma data futura');
+        }
+        if (age < 14 || (age === 14 && (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)))) {
+            throw new BadRequestException('Campo data de nascimento deve ser de uma pessoa maior de 14 anos');
+        }
+        return date;
+    })
     birthDate: Date;
 
     @IsNotEmpty({ message: 'Campo sexo é obrigatório' })
