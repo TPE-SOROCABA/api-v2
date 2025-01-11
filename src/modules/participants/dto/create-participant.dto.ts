@@ -109,6 +109,15 @@ export class CreateParticipantDto {
 
     @IsOptional()
     @IsObject({ message: 'Campo disponibilidade deve ser um objeto' })
+    @Transform(({ value }) => {
+        const transformedValue = {};
+        for (const key in value) {
+            if (value.hasOwnProperty(key)) {
+                transformedValue[key.toLowerCase()] = value[key];
+            }
+        }
+        return transformedValue;
+    })
     availability?: {
         [day: string]: {
             morning: boolean;
