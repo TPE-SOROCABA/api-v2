@@ -6,8 +6,8 @@ import { PrismaService } from "src/infra/prisma.service";
 import { Petitions } from "@prisma/client";
 
 @Injectable()
-export class PetitionService {
-    private readonly logger = new Logger(PetitionService.name);
+export class PetitionsService {
+    private readonly logger = new Logger(PetitionsService.name);
 
     constructor(
         private readonly s3Service: S3Service,

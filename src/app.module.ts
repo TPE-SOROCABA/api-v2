@@ -3,11 +3,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
-import { PetitionModule } from './module/petition/petition.module';
+import { PetitionsModule } from './module/petitions/petition.module';
 import { PrismaService } from './infra/prisma.service';
 
 @Module({
-  imports: [PetitionModule],
+  imports: [PetitionsModule],
   controllers: [AppController],
   providers: [
     AppService,

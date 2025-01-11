@@ -2,11 +2,11 @@ import { BadRequestException, Controller, Post, Res, UploadedFile, UseIntercepto
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { PetitionService } from './petition.service';
+import { PetitionsService } from './petitions.service';
 
 @Controller('petitions')
-export class PetitionController {
-    constructor(private readonly petitionService: PetitionService) { }
+export class PetitionsController {
+    constructor(private readonly petitionService: PetitionsService) { }
 
     @Post('upload')
     @UseInterceptors(
