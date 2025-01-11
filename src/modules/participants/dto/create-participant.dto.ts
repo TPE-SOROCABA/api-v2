@@ -25,9 +25,9 @@ export class CreateParticipantDto {
     @IsDate({ message: 'Campo data de nascimento deve ser uma data válida' })
     birthDate: Date;
 
-    @IsNotEmpty({ message: 'Campo gênero é obrigatório' })
+    @IsNotEmpty({ message: 'Campo sexo é obrigatório' })
     @Transform(({ value }) => value.toUpperCase())
-    @IsEnum(ParticipantSex, { message: `Campo gênero deve ser válido. [ ${Object.values(ParticipantSex).join(' | ')} ]` })
+    @IsEnum(ParticipantSex, { message: `Campo sexo deve ser válido. [ ${Object.values(ParticipantSex).join(' | ')} ]` })
     sex: ParticipantSex;
 
     @IsNotEmpty({ message: 'Campo estado civil é obrigatório' })
@@ -60,6 +60,7 @@ export class CreateParticipantDto {
 
     @IsNotEmpty({ message: 'Campo telefone é obrigatório' })
     @IsString({ message: 'Campo telefone deve ser do tipo texto' })
+    @Transform(({ value }) => value.replace(/[^0-9]/g, ''))
     phone: string;
 
     @IsNotEmpty({ message: 'Campo email é obrigatório' })
