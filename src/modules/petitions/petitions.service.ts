@@ -3,7 +3,7 @@ import { S3Service } from "src/infra/s3.service";
 import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import * as fs from 'fs';
 import { PrismaService } from "src/infra/prisma.service";
-import { Petitions } from "@prisma/client";
+import { Petitions, PetitionStatus } from "@prisma/client";
 
 @Injectable()
 export class PetitionsService {
@@ -35,6 +35,17 @@ export class PetitionsService {
         })
 
         return petitionsWithParticipants;
+    }
+
+    async changeStatusToWaitingInformation(id: string): Promise<Petitions> {
+        const petition = await this.prismaService.petitions.update({
+            where: { id },
+            data: {
+                status: PetitionStatus.WAITING_INFORMATION
+            }
+        });
+
+        return petition;
     }
 
     async uploadFile(file: Express.Multer.File) {

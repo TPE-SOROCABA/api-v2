@@ -1,8 +1,9 @@
-import { BadRequestException, Controller, Get, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Patch, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { PetitionsService } from './petitions.service';
+import { FindOneParams } from 'src/shared/dto/find-one-params.dto';
 
 @Controller('petitions')
 export class PetitionsController {
@@ -11,6 +12,11 @@ export class PetitionsController {
     @Get()
     async getAllPetitions() {
         return this.petitionService.getAllPetitions();
+    }
+
+    @Patch('waiting-information/:id')
+    async changeStatusToWaitingInformation(@Param() params: FindOneParams) {
+        return this.petitionService.changeStatusToWaitingInformation(params.id);
     }
 
     @Post('upload')
