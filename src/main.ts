@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -8,6 +8,12 @@ async function bootstrap() {
     logger.log('Iniciando aplicação NestJS...');
 
     const app = await NestFactory.create(AppModule);
+
+    logger.log('Aplicando configurações globais...');
+    app.useGlobalPipes(new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }));
 
     // Configuração global de porta
     const port = process.env.PORT || 3000;
