@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { S3Client, PutObjectCommand, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadBucketCommand, CreateBucketCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid'; // Para gerar nomes únicos
 
 @Injectable()
@@ -56,6 +56,27 @@ export class S3Service {
     const fileUrl = `${process.env.CLOUDFRONT_PETITION_URL}/${fileKey}`;
     this.logger.log(`URL pública gerada para o arquivo: ${fileUrl}`);
     return fileUrl;
+  }
+
+  async deleteFile(fileKey: string, bucketName: string): Promise<void> {
+    this.logger.log(`Iniciando exclusão do arquivo: ${fileKey} do bucket: ${bucketName}`);
+
+    // Verifica se o bucket existe
+    const bucketExists = await this.bucketExists(bucketName);
+    if (!bucketExists) {
+      this.logger.warn(`Bucket "${bucketName}" não encontrado.`);
+      return;
+    }
+
+    // Exclui o arquivo do S3
+    try {
+      this.logger.log('Iniciando exclusão do arquivo do S3...');
+      await this.s3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: fileKey }));
+      this.logger.log(`Arquivo "${fileKey}" excluído com sucesso do S3.`);
+    } catch (error) {
+      this.logger.error(`Erro ao excluir o arquivo do S3: ${error.message}`);
+      throw new InternalServerErrorException('Erro ao excluir o arquivo', error.message);
+    }
   }
 
   // Verificar se o bucket existe

@@ -48,34 +48,8 @@ export class PetitionsService {
         return petition;
     }
 
-    async uploadFile(file: Express.Multer.File) {
-        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
-
-        // Converte o PDF em imagens
-        this.logger.log('Convertendo PDF para imagens...');
-        const imagesPath = await this.convertPdfToImagesUseCase.execute(file.path);
-        this.logger.log(`PDF convertido. Total de imagens geradas: ${imagesPath.length}`);
-
-        const urls = [];
-        for (const imagePath of imagesPath) {
-            this.logger.log(`Lendo imagem gerada: ${imagePath}`);
-            const image = fs.readFileSync(imagePath);
-
-            this.logger.log(`Fazendo upload da imagem para o bucket S3...`);
-            const imageUrl = await this.s3Service.uploadFile({
-                ...file,
-                buffer: image,
-                mimetype: 'image/png',
-                size: image.length,
-                originalname: file.originalname.replace('.pdf', '.png').replace(/ /g, '_'),
-            }, `${process.env.NODE_ENV}-petitions`);
-            this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
-
-            fs.unlinkSync(imagePath);
-            this.logger.log(`Imagem temporária excluída: ${imagePath}`);
-
-            urls.push(imageUrl);
-        }
+    async uploadFile(file: Express.Multer.File): Promise<Petitions> {
+        const urls = await this.uploadS3(file);
 
         this.logger.log('Gerando protocolo único...');
         let isProtocolUnique = false;
@@ -105,6 +79,63 @@ export class PetitionsService {
         this.logger.log(`Registro criado com sucesso. ID: ${petition.id}`);
 
         return petition;
+    }
+
+    async updateUploadFile(id: string, file: Express.Multer.File) {
+        const petition = await this.prismaService.petitions.findUnique({
+            where: { id }
+        });
+        if (!petition) {
+            throw new NotFoundException('Petição não encontrada');
+        }
+
+        const keyOne = petition.publicUrl.split('/').pop();
+        const keyTwo = petition.privateUrl.split('/').pop();
+        await this.s3Service.deleteFile(keyOne, `${process.env.NODE_ENV}-petitions`);
+        await this.s3Service.deleteFile(keyTwo, `${process.env.NODE_ENV}-petitions`);
+
+        const urls = await this.uploadS3(file);
+
+        const updatedPetition = await this.prismaService.petitions.update({
+            where: { id },
+            data: {
+                publicUrl: urls[0],
+                privateUrl: urls[1]
+            }
+        });
+
+        return updatedPetition;
+    }
+
+    private async uploadS3(file: Express.Multer.File) {
+        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
+
+        // Converte o PDF em imagens
+        this.logger.log('Convertendo PDF para imagens...');
+        const imagesPath = await this.convertPdfToImagesUseCase.execute(file.path);
+        this.logger.log(`PDF convertido. Total de imagens geradas: ${imagesPath.length}`);
+
+        const urls = [];
+        for (const imagePath of imagesPath) {
+            this.logger.log(`Lendo imagem gerada: ${imagePath}`);
+            const image = fs.readFileSync(imagePath);
+
+            this.logger.log(`Fazendo upload da imagem para o bucket S3...`);
+            const imageUrl = await this.s3Service.uploadFile({
+                ...file,
+                buffer: image,
+                mimetype: 'image/png',
+                size: image.length,
+                originalname: file.originalname.replace('.pdf', '.png').replace(/ /g, '_'),
+            }, `${process.env.NODE_ENV}-petitions`);
+            this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
+
+            fs.unlinkSync(imagePath);
+            this.logger.log(`Imagem temporária excluída: ${imagePath}`);
+
+            urls.push(imageUrl);
+        }
+        return urls;
     }
 
     private generateProtocol() {
