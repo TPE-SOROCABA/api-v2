@@ -4,25 +4,34 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  try {
-    logger.log('Iniciando aplicação NestJS...');
+  const maxRetries = 3;
+  let attempt = 0;
 
-    const app = await NestFactory.create(AppModule);
+  while (attempt < maxRetries) {
+    try {
+      logger.log('Iniciando aplicação NestJS...');
 
-    logger.log('Aplicando configurações globais...');
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      transform: true,
-    }));
+      const app = await NestFactory.create(AppModule);
 
-    // Configuração global de porta
-    const port = process.env.PORT || 3000;
-    await app.listen(port);
+      logger.log('Aplicando configurações globais...');
+      app.useGlobalPipes(new ValidationPipe({
+        whitelist: true,
+        transform: true,
+      }));
 
-    logger.log(`Aplicação rodando na porta ${port}`);
-  } catch (error) {
-    logger.error('Erro crítico durante a inicialização da aplicação:', error.message);
-    process.exit(1); // Finaliza o processo com código de erro
+      // Configuração global de porta
+      const port = process.env.PORT || 3000;
+      await app.listen(port);
+
+      logger.log(`Aplicação rodando na porta ${port}`);
+      break; // Se a inicialização for bem-sucedida, sai do loop
+    } catch (error) {
+      attempt++;
+      logger.error(`Erro crítico durante a inicialização da aplicação (tentativa ${attempt} de ${maxRetries}):`, error.message);
+      if (attempt >= maxRetries) {
+        process.exit(1); // Finaliza o processo com código de erro após atingir o número máximo de tentativas
+      }
+    }
   }
 }
 

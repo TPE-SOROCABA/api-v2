@@ -9,21 +9,39 @@ datasource db {
 }
 
 model Participants {
-  id                      String                    @id @default(uuid())
-  name                    String
-  cpf                     String?                   @unique
-  phone                   String                    @unique
-  profile_photo           String?
-  profile                 ParticipantProfile        @default(PARTICIPANT)
-  computed                String?
-  sex                     ParticipantSex
-  email                   String?                   @unique
+  id           String             @id @default(uuid())
+  name         String
+  cpf          String?            @unique
+  phone        String             @unique
+  profilePhoto String?            @map("profile_photo")
+  profile      ParticipantProfile @default(PARTICIPANT)
+  computed     String?
+  sex          ParticipantSex // migrar para novo campo gender
+  email        String?            @unique // corriir esse campo e deixar como obrigatório
+
+  birthDate         DateTime?    @map("birth_date") // Novo campo
+  gender            Gender?      @map("gender") // Novo campo
+  civilStatus       CivilStatus? @map("civil_status") // Novo campo
+  languages         String[]     @map("languages") // Novo campo
+  address           String?      @map("address") // Novo campo
+  city              String?      @map("city") // Novo campo
+  state             String?      @map("state") // Novo campo
+  zipCode           String?      @map("zip_code") // Novo campo
+  congregation      String?      @map("congregation") // Novo campo
+  baptismDate       DateTime?    @map("baptism_date") // Novo campo
+  hasMinorChild     Boolean?     @map("has_minor_child") // Novo campo
+  spouseParticipant Boolean?     @map("spouse_participant") // Novo campo
+  availability      Json?        @map("availability") // Novo campo
+  petitionId        String?      @map("petition_id") // Novo campo
+  attributions      String[]     @map("attributions") // Novo campo
+
   AssignmentsParticipants AssignmentsParticipants[]
   Auth                    Auth?
   Groups                  Groups[]
   IncidentParticipant     IncidentHistories[]       @relation("ParticipantRelation")
   IncidentReporter        IncidentHistories[]       @relation("ReporterRelation")
   ParticipantsGroup       ParticipantsGroups[]
+  Petitions               Petitions?                @relation(fields: [petitionId], references: [id])
 
   @@map("participants")
 }
@@ -197,15 +215,16 @@ model Assignments {
 }
 
 model Petitions {
-  id         String         @id @default(uuid())
-  protocol   String         @unique
-  status     PetitionStatus @default(CREATED)
-  publicUrl  String         @map("public_url")
-  privateUrl String         @map("private_url")
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
+  id           String         @id @default(uuid())
+  protocol     String         @unique
+  status       PetitionStatus @default(CREATED)
+  publicUrl    String         @map("public_url")
+  privateUrl   String         @map("private_url")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  Participants Participants[]
 
-  @@map("petitions") 
+  @@map("petitions")
 }
 
 enum ParticipantProfile {
@@ -265,4 +284,16 @@ enum PetitionStatus {
   ACTIVE
   SUSPENDED
   EXCLUDED
+}
+
+enum CivilStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum Gender {
+  MALE
+  FEMALE
 }
