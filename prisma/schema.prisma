@@ -3,45 +3,44 @@ generator client {
   binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
 }
 
+// https://github.com/prisma/prisma/discussions/22439
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Participants {
-  id           String             @id @default(uuid())
-  name         String
-  cpf          String?            @unique
-  phone        String             @unique
-  profilePhoto String?            @map("profile_photo")
-  profile      ParticipantProfile @default(PARTICIPANT)
-  computed     String?
-  sex          ParticipantSex // migrar para novo campo gender
-  email        String?            @unique // corriir esse campo e deixar como obrigatório
-
-  birthDate         DateTime?    @map("birth_date") // Novo campo
-  gender            Gender?      @map("gender") // Novo campo
-  civilStatus       CivilStatus? @map("civil_status") // Novo campo
-  languages         String[]     @map("languages") // Novo campo
-  address           String?      @map("address") // Novo campo
-  city              String?      @map("city") // Novo campo
-  state             String?      @map("state") // Novo campo
-  zipCode           String?      @map("zip_code") // Novo campo
-  congregation      String?      @map("congregation") // Novo campo
-  baptismDate       DateTime?    @map("baptism_date") // Novo campo
-  hasMinorChild     Boolean?     @map("has_minor_child") // Novo campo
-  spouseParticipant Boolean?     @map("spouse_participant") // Novo campo
-  availability      Json?        @map("availability") // Novo campo
-  petitionId        String?      @map("petition_id") // Novo campo
-  attributions      String[]     @map("attributions") // Novo campo
-
+  id                      String                    @id @default(uuid())
+  name                    String
+  phone                   String                    @unique
+  profilePhoto            String?                   @map("profile_photo")
+  profile                 ParticipantProfile        @default(PARTICIPANT)
+  computed                String?
+  sex                     ParticipantSex
+  email                   String?                   @unique
+  address                 String?                   @map("address")
+  attributions            String[]                  @map("attributions")
+  availability            Json?                     @map("availability")
+  baptismDate             DateTime?                 @map("baptism_date")
+  birthDate               DateTime?                 @map("birth_date")
+  city                    String?                   @map("city")
+  civilStatus             CivilStatus?              @map("civil_status")
+  congregation            String?                   @map("congregation")
+  gender                  Gender?                   @map("gender")
+  hasMinorChild           Boolean?                  @map("has_minor_child")
+  languages               String[]                  @map("languages")
+  petitionId              String?                   @map("petition_id")
+  spouseParticipant       Boolean?                  @map("spouse_participant")
+  state                   String?                   @map("state")
+  zipCode                 String?                   @map("zip_code")
+  cpf                     String?                   @unique
   AssignmentsParticipants AssignmentsParticipants[]
   Auth                    Auth?
   Groups                  Groups[]
   IncidentParticipant     IncidentHistories[]       @relation("ParticipantRelation")
   IncidentReporter        IncidentHistories[]       @relation("ReporterRelation")
-  ParticipantsGroup       ParticipantsGroups[]
   Petitions               Petitions?                @relation(fields: [petitionId], references: [id])
+  ParticipantsGroup       ParticipantsGroups[]
 
   @@map("participants")
 }

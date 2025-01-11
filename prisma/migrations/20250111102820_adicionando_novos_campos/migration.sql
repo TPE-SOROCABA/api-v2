@@ -23,11 +23,3 @@ ADD COLUMN     "zip_code" TEXT;
 
 -- AddForeignKey
 ALTER TABLE "participants" ADD CONSTRAINT "participants_petition_id_fkey" FOREIGN KEY ("petition_id") REFERENCES "petitions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddDefaultValue
-UPDATE "participants"
-SET "gender" = CAST(CASE 
-  WHEN "sex" = 'MALE' THEN 'MALE'
-  WHEN "sex" = 'FEMALE' THEN 'FEMALE'
-  ELSE NULL
-END AS "Gender");
