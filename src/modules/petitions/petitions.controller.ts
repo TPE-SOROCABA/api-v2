@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -7,6 +7,11 @@ import { PetitionsService } from './petitions.service';
 @Controller('petitions')
 export class PetitionsController {
     constructor(private readonly petitionService: PetitionsService) { }
+
+    @Get()
+    async getAllPetitions() {
+        return this.petitionService.getAllPetitions();
+    }
 
     @Post('upload')
     @UseInterceptors(
@@ -30,4 +35,6 @@ export class PetitionsController {
     async uploadFile(@UploadedFile() file: Express.Multer.File) {
         return this.petitionService.uploadFile(file);
     }
+
+    
 }

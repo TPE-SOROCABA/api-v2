@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { S3Service } from "src/infra/s3.service";
 import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import * as fs from 'fs';
@@ -14,6 +14,28 @@ export class PetitionsService {
         private readonly convertPdfToImagesUseCase: ConvertPdfToImagesUseCase,
         private readonly prismaService: PrismaService
     ) { }
+
+    async getAllPetitions(): Promise<Petitions[]> {
+        const petitions = await this.prismaService.petitions.findMany({
+            include: {
+                Participants: true
+            }
+        });
+
+        if (!petitions) {
+            throw new NotFoundException('Nenhuma petição encontrada');
+        }
+
+        const petitionsWithParticipants = petitions.map(petition => {
+            const { Participants, ...rest } = petition;
+            return {
+                ...rest,
+                participant: Participants.length > 0 ? Participants[0] : null
+            };
+        })
+
+        return petitionsWithParticipants;
+    }
 
     async uploadFile(file: Express.Multer.File) {
         this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
