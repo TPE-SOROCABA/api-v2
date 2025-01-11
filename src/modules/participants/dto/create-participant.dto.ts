@@ -12,18 +12,7 @@ import {
     IsUrl,
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
-
-export enum CivilStatus {
-    SOLTEIRO = "SINGLE",
-    CASADO = "MARRIED",
-    DIVORCIADO = "DIVORCED",
-    VIUVO = "WIDOWED",
-}
-
-export enum Gender {
-    MALE = "MALE",
-    FEMALE = "FEMALE",
-}
+import { CivilStatus, ParticipantSex } from "@prisma/client";
 
 export class CreateParticipantDto {
     // Pessoal
@@ -38,8 +27,8 @@ export class CreateParticipantDto {
 
     @IsNotEmpty({ message: 'Campo gênero é obrigatório' })
     @Transform(({ value }) => value.toUpperCase())
-    @IsEnum(Gender, { message: `Campo gênero deve ser válido. [ ${Object.values(Gender).join(' | ')} ]` })
-    gender: Gender;
+    @IsEnum(ParticipantSex, { message: `Campo gênero deve ser válido. [ ${Object.values(ParticipantSex).join(' | ')} ]` })
+    sex: ParticipantSex;
 
     @IsNotEmpty({ message: 'Campo estado civil é obrigatório' })
     @Transform(({ value }) => value.toUpperCase())
@@ -112,9 +101,9 @@ export class CreateParticipantDto {
         };
     };
 
-    @IsOptional()
+    @IsNotEmpty({ message: 'Campo id da petição é obrigatório' })
     @IsUUID(4, { message: "Campo id da petição deve ser um UUID v4 válido" })
-    petitionId?: string;
+    petitionId: string;
 
     @IsOptional()
     @IsUrl({}, { message: "Campo image deve ser uma URL válida" })

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { UpdateParticipantDto } from './dto/update-participant.dto';
 import { PrismaService } from 'src/infra/prisma.service';
@@ -10,10 +10,7 @@ export class ParticipantsService {
 
   create(createParticipantDto: CreateParticipantDto) {
     return this.prisma.participants.create({
-      data: {
-        ...createParticipantDto,
-        sex: createParticipantDto.gender
-      }
+      data: createParticipantDto,
     });
   }
 
@@ -28,12 +25,11 @@ export class ParticipantsService {
         Petitions: true,
       },
     });
-  
+
     if (!participant) {
-      throw new Error('Participant not found');
+      throw new NotFoundException('Participante não encontrado');
     }
-  
-    // Reestruturando para renomear o campo
+
     const { Petitions, ...rest } = participant;
     return {
       ...rest,
@@ -44,12 +40,7 @@ export class ParticipantsService {
   update(id: string, updateParticipantDto: UpdateParticipantDto) {
     return this.prisma.participants.update({
       where: { id },
-      data: {
-        ...updateParticipantDto,
-        ...(updateParticipantDto.gender && {
-          sex: updateParticipantDto.gender
-        })
-      },
+      data: updateParticipantDto,
     });
   }
 }

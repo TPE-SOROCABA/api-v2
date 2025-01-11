@@ -26,7 +26,6 @@ model Participants {
   city                    String?                   @map("city")
   civilStatus             CivilStatus?              @map("civil_status")
   congregation            String?                   @map("congregation")
-  gender                  Gender?                   @map("gender")
   hasMinorChild           Boolean?                  @map("has_minor_child")
   languages               String[]                  @map("languages")
   petitionId              String?                   @map("petition_id")
@@ -290,9 +289,4 @@ enum CivilStatus {
   MARRIED
   DIVORCED
   WIDOWED
-}
-
-enum Gender {
-  MALE
-  FEMALE
 }
