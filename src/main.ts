@@ -12,7 +12,7 @@ async function bootstrap() {
       logger.log('Iniciando aplicação NestJS...');
 
       const app = await NestFactory.create(AppModule);
-
+      app.enableCors();
       logger.log('Aplicando configurações globais...');
       app.useGlobalPipes(new ValidationPipe({
         whitelist: true,
