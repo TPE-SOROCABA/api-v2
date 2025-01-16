@@ -3,7 +3,6 @@ FROM node:22 as builder
 
 WORKDIR /app
 
-
 # Copie os arquivos necessários para instalar as dependências
 COPY package*.json ./
 
@@ -21,8 +20,14 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Instale GraphicsMagick e dependências necessárias
-RUN apk add graphicsmagick ghostscript openssl
+# Instale dependências e o Tesseract OCR
+RUN apk add --no-cache \
+    graphicsmagick \
+    ghostscript \
+    openssl \
+    tesseract-ocr \
+    tesseract-ocr-data-por \
+    tesseract-ocr-data-eng 
 
 # Copie os arquivos necessários para rodar a aplicação
 COPY --from=builder /app/dist ./dist
@@ -31,9 +36,10 @@ RUN mkdir -p /app/uploads
 COPY package*.json ./
 
 # Instale apenas dependências de produção
-
 RUN npm ci --only=prod --quiet
 
+# Gere os artefatos do Prisma
 RUN npx prisma generate
+
 # Comando de inicialização
 CMD [ "npm", "run", "start:prod" ]

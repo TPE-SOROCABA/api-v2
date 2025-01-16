@@ -107,6 +107,10 @@ export class PetitionsService {
         return updatedPetition;
     }
 
+    async convertPdfToImage(file: Express.Multer.File) {
+        return this.convertPdfToImagesUseCase.execute(file.path);
+    }
+
     private async uploadS3(file: Express.Multer.File) {
         this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
 
