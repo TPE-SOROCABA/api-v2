@@ -24,7 +24,7 @@ export class ErrorInterceptor implements NestInterceptor {
             const response = context.switchToHttp().getResponse<Response>();
             response.status(500).json({
               statusCode: 500,
-              message: `[TransactionId: ${transactionId}] ${error.message}`,
+              message: `Internal server error. ${transactionId}`,
             });
           }
         } 
