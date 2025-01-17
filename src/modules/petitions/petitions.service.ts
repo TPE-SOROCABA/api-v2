@@ -1,13 +1,15 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { S3Service } from "src/infra/s3.service";
-import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import * as fs from 'fs';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { S3Service } from "src/infra/s3.service";
 import { PrismaService } from "src/infra/prisma.service";
+import { TransactionLogger } from "src/infra/transaction.logger";
+import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import { Petitions, PetitionStatus } from "@prisma/client";
+import { FindAllParams } from "./dto/find-all.dto";
 
 @Injectable()
 export class PetitionsService {
-    private readonly logger = new Logger(PetitionsService.name);
+    private readonly logger = new TransactionLogger(PetitionsService.name);
 
     constructor(
         private readonly s3Service: S3Service,
@@ -15,11 +17,13 @@ export class PetitionsService {
         private readonly prismaService: PrismaService
     ) { }
 
-    async getAllPetitions(): Promise<Petitions[]> {
+    async getAllPetitions(params: FindAllParams): Promise<Petitions[]> {
         const petitions = await this.prismaService.petitions.findMany({
             include: {
                 Participants: true
-            }
+            },
+            ...(params.status && { where: { status: params.status } }),
+            ...(params.protocol && { where: { protocol: { contains: params.protocol } } }),
         });
 
         if (!petitions) {

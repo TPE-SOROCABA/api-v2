@@ -1,10 +1,11 @@
-import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import * as jwt from 'jsonwebtoken';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { TransactionLogger } from 'src/infra/transaction.logger';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  logger = new Logger(AuthGuard.name);
+  logger = new TransactionLogger(AuthGuard.name);
   constructor(private reflector: Reflector) {}
   canActivate(context: ExecutionContext): boolean {
     // const request = context.switchToHttp().getRequest();

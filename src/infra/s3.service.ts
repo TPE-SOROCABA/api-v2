@@ -1,11 +1,12 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { S3Client, PutObjectCommand, HeadBucketCommand, CreateBucketCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid'; // Para gerar nomes únicos
+import { TransactionLogger } from './transaction.logger';
 
 @Injectable()
 export class S3Service {
   private readonly s3: S3Client;
-  private readonly logger = new Logger(S3Service.name);
+  private readonly logger = new TransactionLogger(S3Service.name);
 
   constructor() {
     this.logger.log('Inicializando cliente S3...');

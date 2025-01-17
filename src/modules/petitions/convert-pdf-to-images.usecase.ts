@@ -1,12 +1,14 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { TransactionLogger } from 'src/infra/transaction.logger';
 import { fromPath } from 'pdf2pic';
 import pdfParse from 'pdf-parse';
+import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class ConvertPdfToImagesUseCase {
-    private readonly logger = new Logger(ConvertPdfToImagesUseCase.name);
+    private readonly logger = new TransactionLogger(ConvertPdfToImagesUseCase.name);
 
     async execute(pdfPath: string): Promise<string[]> {
         this.logger.log(`Iniciando validação do PDF no caminho: ${pdfPath}`);
@@ -29,6 +31,7 @@ export class ConvertPdfToImagesUseCase {
             height: 3508, // Altura da imagem (A4 - 300 DPI)
             savePath: outputDir, // Diretório de saída
             format: 'png', // Formato da imagem
+            saveFilename: uuidv4(), // Nome da imagem
         });
 
         const totalPages = 2; // Alterar para o número de páginas, se necessário
