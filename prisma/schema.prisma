@@ -282,6 +282,9 @@ enum PetitionStatus {
   ACTIVE
   SUSPENDED
   EXCLUDED
+  INACTIVE
+  EXPIRED
+  TEMPORARY
 }
 
 enum CivilStatus {
