@@ -21,6 +21,24 @@ export class CreateParticipantDto {
     @IsString({ message: 'Campo nome deve ser do tipo texto' })
     name: string;
 
+    @IsNotEmpty({ message: 'Campo sexo é obrigatório' })
+    @Transform(({ value }) => value.toUpperCase())
+    @IsEnum(ParticipantSex, { message: `Campo sexo deve ser válido. [ ${Object.values(ParticipantSex).join(' | ')} ]` })
+    sex: ParticipantSex;
+
+    @IsNotEmpty({ message: 'Campo telefone é obrigatório' })
+    @IsString({ message: 'Campo telefone deve ser do tipo texto' })
+    @Transform(({ value }) => value.replace(/[^0-9]/g, ''))
+    phone: string;
+
+    @IsNotEmpty({ message: 'Campo email é obrigatório' })
+    @IsEmail({}, { message: 'Campo email deve ser um email válido' })
+    email: string;
+
+    @IsNotEmpty({ message: 'Campo id da petição é obrigatório' })
+    @IsUUID(4, { message: "Campo id da petição deve ser um UUID v4 válido" })
+    petitionId: string;
+
     @IsOptional({ message: 'Campo data de nascimento é obrigatório' })
     @Type(() => Date)
     @IsDate({ message: 'Campo data de nascimento deve ser uma data válida' })
@@ -39,11 +57,6 @@ export class CreateParticipantDto {
         return date;
     })
     birthDate: Date;
-
-    @IsNotEmpty({ message: 'Campo sexo é obrigatório' })
-    @Transform(({ value }) => value.toUpperCase())
-    @IsEnum(ParticipantSex, { message: `Campo sexo deve ser válido. [ ${Object.values(ParticipantSex).join(' | ')} ]` })
-    sex: ParticipantSex;
 
     @IsOptional({ message: 'Campo estado civil é obrigatório' })
     @Transform(({ value }) => value.toUpperCase())
@@ -72,15 +85,6 @@ export class CreateParticipantDto {
     @IsOptional({ message: 'Campo CEP é obrigatório' })
     @IsString({ message: 'Campo CEP deve ser do tipo texto' })
     zipCode: string;
-
-    @IsNotEmpty({ message: 'Campo telefone é obrigatório' })
-    @IsString({ message: 'Campo telefone deve ser do tipo texto' })
-    @Transform(({ value }) => value.replace(/[^0-9]/g, ''))
-    phone: string;
-
-    @IsNotEmpty({ message: 'Campo email é obrigatório' })
-    @IsEmail({}, { message: 'Campo email deve ser um email válido' })
-    email: string;
 
     // Espiritual
     @IsOptional({ message: 'Campo congregação é obrigatório' })
@@ -125,10 +129,6 @@ export class CreateParticipantDto {
             evening: boolean;
         };
     };
-
-    @IsNotEmpty({ message: 'Campo id da petição é obrigatório' })
-    @IsUUID(4, { message: "Campo id da petição deve ser um UUID v4 válido" })
-    petitionId: string;
 
     @IsOptional()
     @IsUrl({}, { message: "Campo image deve ser uma URL válida" })
