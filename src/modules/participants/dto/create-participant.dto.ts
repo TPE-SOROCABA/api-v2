@@ -21,7 +21,7 @@ export class CreateParticipantDto {
     @IsString({ message: 'Campo nome deve ser do tipo texto' })
     name: string;
 
-    @IsNotEmpty({ message: 'Campo data de nascimento é obrigatório' })
+    @IsOptional({ message: 'Campo data de nascimento é obrigatório' })
     @Type(() => Date)
     @IsDate({ message: 'Campo data de nascimento deve ser uma data válida' })
     @Transform(({ value }) => {
@@ -45,31 +45,31 @@ export class CreateParticipantDto {
     @IsEnum(ParticipantSex, { message: `Campo sexo deve ser válido. [ ${Object.values(ParticipantSex).join(' | ')} ]` })
     sex: ParticipantSex;
 
-    @IsNotEmpty({ message: 'Campo estado civil é obrigatório' })
+    @IsOptional({ message: 'Campo estado civil é obrigatório' })
     @Transform(({ value }) => value.toUpperCase())
     @IsEnum(CivilStatus, { message: `Campo estado civil deve ser válido. [ ${Object.values(CivilStatus).join(' | ')} ]` })
     civilStatus: CivilStatus;
 
-    @IsNotEmpty({ message: 'Campo idiomas é obrigatório' })
+    @IsOptional({ message: 'Campo idiomas é obrigatório' })
     @IsArray({ message: 'Campo idiomas deve ser uma lista' })
     @IsString({ each: true, message: 'Os itens de idiomas devem ser textos' })
     @Transform(({ value }) => value.map((v: string) => v.toUpperCase()))
     languages: string[];
 
-    @IsNotEmpty({ message: 'Campo endereço é obrigatório' })
+    @IsOptional({ message: 'Campo endereço é obrigatório' })
     @IsString({ message: 'Campo endereço deve ser do tipo texto' })
     address: string;
 
-    @IsNotEmpty({ message: 'Campo cidade é obrigatório' })
+    @IsOptional({ message: 'Campo cidade é obrigatório' })
     @IsString({ message: 'Campo cidade deve ser do tipo texto' })
     city: string;
 
-    @IsNotEmpty({ message: 'Campo estado é obrigatório' })
+    @IsOptional({ message: 'Campo estado é obrigatório' })
     @IsString({ message: 'Campo estado deve ser do tipo texto' })
     @Transform(({ value }) => value.toUpperCase())
     state: string;
 
-    @IsNotEmpty({ message: 'Campo CEP é obrigatório' })
+    @IsOptional({ message: 'Campo CEP é obrigatório' })
     @IsString({ message: 'Campo CEP deve ser do tipo texto' })
     zipCode: string;
 
@@ -83,11 +83,11 @@ export class CreateParticipantDto {
     email: string;
 
     // Espiritual
-    @IsNotEmpty({ message: 'Campo congregação é obrigatório' })
+    @IsOptional({ message: 'Campo congregação é obrigatório' })
     @IsString({ message: 'Campo congregação deve ser do tipo texto' })
     congregation: string;
 
-    @IsNotEmpty({ message: 'Campo data de batismo é obrigatório' })
+    @IsOptional({ message: 'Campo data de batismo é obrigatório' })
     @IsDate({ message: 'Campo data de batismo deve ser uma data válida' })
     @Type(() => Date)
     baptismDate: Date;
@@ -99,11 +99,11 @@ export class CreateParticipantDto {
     attributions?: string[];
 
     // Outros
-    @IsNotEmpty({ message: 'Campo possui filho menor é obrigatório' })
+    @IsOptional({ message: 'Campo possui filho menor é obrigatório' })
     @IsBoolean({ message: 'Campo possui filho menor deve ser booleano' })
     hasMinorChild: boolean;
 
-    @IsNotEmpty({ message: 'Campo cônjuge participante é obrigatório' })
+    @IsOptional({ message: 'Campo cônjuge participante é obrigatório' })
     @IsBoolean({ message: 'Campo cônjuge participante deve ser booleano' })
     spouseParticipant: boolean;
 
