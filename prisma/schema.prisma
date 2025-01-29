@@ -225,6 +225,15 @@ model Petitions {
   @@map("petitions")
 }
 
+model Congregations {
+  id   Int @id @default(autoincrement())
+  name String
+  city String
+  state String
+
+  @@map("congregations")
+}
+
 enum ParticipantProfile {
   COORDINATOR
   ASSISTANT_COORDINATOR
