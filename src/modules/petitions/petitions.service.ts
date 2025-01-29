@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { S3Service } from "src/infra/s3.service";
-import { PrismaService } from "src/infra/prisma.service";
+import { PrismaService } from "src/infra/prisma/prisma.service";
 import { TransactionLogger } from "src/infra/transaction.logger";
 import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import { Petitions, PetitionStatus } from "@prisma/client";

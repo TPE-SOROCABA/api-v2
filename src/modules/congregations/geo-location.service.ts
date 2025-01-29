@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class GeoLocationService {
-  constructor(private readonly httpService: HttpService, ) {}
+  constructor(private readonly httpService: HttpService) { }
 
   private generateBoundingBox(latitude: number, longitude: number, offset: number = 0.05) {
     return {
@@ -24,8 +24,8 @@ export class GeoLocationService {
     }
   }
 
-  async fetchMeetings(latStart: number, longStart: number, step:number) {
-    const stepFloat = step/100;
+  async fetchMeetings(latStart: number, longStart: number, step: number) {
+    const stepFloat = step / 100;
     const url = 'https://apps.jw.org/api/public/meeting-search/weekly-meetings';
     const directions = ['north', 'south', 'east', 'west'] as const;
     const results = new Array<{ name: string, city: string, state: string }>();

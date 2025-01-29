@@ -9,7 +9,7 @@ async function bootstrap() {
   logger.log('Iniciando aplicação NestJS...');
 
   const app = await NestFactory.create(AppModule, {
-    logger: process.env.NODE_ENV === 'dev' ? ['log', 'error', 'warn', 'debug', 'verbose'] : console,
+    logger: process.env.NODE_ENV === 'test' ? ['log', 'error', 'warn', 'debug', 'verbose'] : console,
   });
   app.enableCors();
   app.useGlobalInterceptors(new ErrorInterceptor());
