@@ -27,4 +27,9 @@ export class ParticipantsController {
   update(@Param() params: FindOneParams, @Body() updateParticipantDto: UpdateParticipantDto) {
     return this.participantsService.update(params.id, updateParticipantDto);
   }
+
+  @Get('emails/:email')
+  findByEmail(@Param('email') email: string) {
+    return this.participantsService.findByEmail(email);
+  }
 }

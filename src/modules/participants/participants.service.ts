@@ -18,7 +18,11 @@ export class ParticipantsService {
 
   findAll() {
     this.logger.log('Buscando todos os participantes', {teste: 'teste'});
-    return this.prisma.participants.findMany();
+    return this.prisma.participants.findMany({
+      include: {
+        Petitions: true,
+      }
+    });
   }
 
   async findOne(id: string) {
@@ -39,6 +43,22 @@ export class ParticipantsService {
       ...rest,
       petitions: Petitions,
     };
+  }
+
+  async findByEmail(email: string) {
+    this.logger.log(`Buscando participante pelo email: ${email}`);
+    const participant = await this.prisma.participants.findFirst({
+      where: { email },
+      include: {
+        Petitions: true,
+      }
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado');
+    }
+
+    return participant;
   }
 
   update(id: string, updateParticipantDto: UpdateParticipantDto) {
