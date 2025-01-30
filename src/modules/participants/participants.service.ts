@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { UpdateParticipantDto } from './dto/update-participant.dto';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
+import { Participant } from './entities/participants.entity';
 
 @Injectable()
 export class ParticipantsService {
@@ -10,17 +11,28 @@ export class ParticipantsService {
   constructor(private prisma: PrismaService) { }
 
   create(createParticipantDto: CreateParticipantDto) {
+    const participant = Participant.build(createParticipantDto);
     this.logger.log(`Criando participante `, createParticipantDto.name);
-    return this.prisma.participants.create({
-      data: createParticipantDto,
+    return this.prisma.$transaction([
+      this.prisma.participants.create({
+        data: createParticipantDto,
+      }),
+      this.prisma.petitions.update({
+        where: { id: createParticipantDto.petitionId },
+        data: { status: participant.registrationStatus },
+      })
+    ]).catch((error) => {
+      this.logger.error(`Erro ao criar participante: ${error}`);
+      throw new InternalServerErrorException('Erro ao criar participante');  
     });
   }
 
   findAll() {
-    this.logger.log('Buscando todos os participantes', { teste: 'teste' });
+    this.logger.log('Buscando todos os participantes');
     return this.prisma.participants.findMany({
       include: {
         petitions: true,
+        congregation: true,
       }
     });
   }
@@ -60,11 +72,19 @@ export class ParticipantsService {
     return participant;
   }
 
-  update(id: string, updateParticipantDto: UpdateParticipantDto) {
-    return this.prisma.participants.update({
+  async update(id: string, updateParticipantDto: UpdateParticipantDto) {
+    this.logger.log(`Atualizando participante: ${id}`);
+    this.prisma.participants.findUnique({ where: { id } });
+    const entity = await this.prisma.participants.update({
       where: { id },
       data: updateParticipantDto,
     });
+    const participant = Participant.build(entity);
+    await this.prisma.petitions.update({
+      where: { id: participant.petitionId },
+      data: { status: participant.registrationStatus },
+    });
+    return entity;
   }
 
   async updateMissingEmails() {

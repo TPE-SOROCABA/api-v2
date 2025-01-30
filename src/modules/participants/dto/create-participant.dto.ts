@@ -123,7 +123,7 @@ export class CreateParticipantDto {
     profilePhoto?: string;
 }
 
-class AvailabilityItem {
+export class AvailabilityItem {
     @IsInt({ message: 'weekDay deve ser um valor inteiro' })
     weekDay: number;
 
