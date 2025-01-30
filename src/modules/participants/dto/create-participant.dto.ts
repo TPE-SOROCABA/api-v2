@@ -7,10 +7,10 @@ import {
     IsEnum,
     IsBoolean,
     IsArray,
-    IsObject,
     IsUUID,
     IsUrl,
     IsInt,
+    ValidateNested,
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
 import { CivilStatus, ParticipantSex } from "@prisma/client";
@@ -113,25 +113,27 @@ export class CreateParticipantDto {
     spouseParticipant: boolean;
 
     @IsOptional()
-    @IsObject({ message: 'Campo disponibilidade deve ser um objeto' })
-    @Transform(({ value }) => {
-        const transformedValue = {};
-        for (const key in value) {
-            if (value.hasOwnProperty(key)) {
-                transformedValue[key.toLowerCase()] = value[key];
-            }
-        }
-        return transformedValue;
-    })
-    availability?: {
-        [day: string]: {
-            morning: boolean;
-            afternoon: boolean;
-            evening: boolean;
-        };
-    };
+    @IsArray({ message: 'Campo availability deve ser uma lista' })
+    @ValidateNested({ each: true })
+    @Type(() => AvailabilityItem)
+    availability?: any[];
 
     @IsOptional()
     @IsUrl({}, { message: "Campo image deve ser uma URL válida" })
     profilePhoto?: string;
 }
+
+class AvailabilityItem {
+    @IsInt({ message: 'weekDay deve ser um valor inteiro' })
+    weekDay: number;
+
+    @IsBoolean({ message: 'morning deve ser um valor booleano' })
+    morning: boolean;
+
+    @IsBoolean({ message: 'afternoon deve ser um valor booleano' })
+    afternoon: boolean;
+
+    @IsBoolean({ message: 'evening deve ser um valor booleano' })
+    evening: boolean;
+}
+

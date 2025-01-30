@@ -10,30 +10,30 @@ datasource db {
 }
 
 model Participants {
-  id                      String                    @id @default(uuid())
-  name                    String
-  phone                   String                    @unique
-  profilePhoto            String?                   @map("profile_photo")
-  profile                 ParticipantProfile        @default(PARTICIPANT)
-  computed                String?
-  sex                     ParticipantSex
-  email                   String?                   @unique
-  address                 String?                   @map("address")
-  attributions            String[]                  @map("attributions")
-  availability            Json?                     @map("availability")
-  baptismDate             DateTime?                 @map("baptism_date")
-  birthDate               DateTime?                 @map("birth_date")
-  city                    String?                   @map("city")
-  congregationId          Int?                      @map("congregation_id")
-  hasMinorChild           Boolean?                  @map("has_minor_child")
-  languages               String[]                  @map("languages")
-  petitionId              String?                   @map("petition_id")
-  spouseParticipant       Boolean?                  @map("spouse_participant")
-  state                   String?                   @map("state")
-  zipCode                 String?                   @map("zip_code")
-  cpf                     String?                   @unique
-  civilStatus             CivilStatus?              @map("civil_status")
-  
+  id                String             @id @default(uuid())
+  name              String
+  phone             String             @unique
+  email             String             @unique
+  profilePhoto      String?            @map("profile_photo")
+  profile           ParticipantProfile @default(PARTICIPANT)
+  computed          String?
+  sex               ParticipantSex
+  address           String?            @map("address")
+  attributions      String[]           @map("attributions")
+  availability      Json[]             @map("availability")
+  baptismDate       DateTime?          @map("baptism_date")
+  birthDate         DateTime?          @map("birth_date")
+  city              String?            @map("city")
+  congregationId    Int?               @map("congregation_id")
+  hasMinorChild     Boolean?           @map("has_minor_child")
+  languages         String[]           @map("languages")
+  petitionId        String?            @map("petition_id")
+  spouseParticipant Boolean?           @map("spouse_participant")
+  state             String?            @map("state")
+  zipCode           String?            @map("zip_code")
+  cpf               String?
+  civilStatus       CivilStatus?       @map("civil_status")
+
   congregation            Congregations?            @relation(fields: [congregationId], references: [id])
   assignmentsParticipants AssignmentsParticipants[]
   auth                    Auth?
@@ -47,25 +47,25 @@ model Participants {
 }
 
 model ParticipantsGroups {
-  id            String       @id @default(uuid())
-  participantId String       @map("participant_id")
-  groupId       String       @map("group_id")
-  
-  group         Groups       @relation(fields: [groupId], references: [id])
-  participant   Participants @relation(fields: [participantId], references: [id])
+  id            String @id @default(uuid())
+  participantId String @map("participant_id")
+  groupId       String @map("group_id")
+
+  group       Groups       @relation(fields: [groupId], references: [id])
+  participant Participants @relation(fields: [participantId], references: [id])
 
   @@map("participants_groups")
 }
 
 model Auth {
-  id                String       @id @default(uuid())
+  id                String    @id @default(uuid())
   password          String
-  resetPasswordCode String?      @map("reset_password_code")
-  participantId     String       @unique @map("participant_id")
-  expiredAt         DateTime?    @map("expired_at")
-  updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at")
-  
-  participant       Participants @relation(fields: [participantId], references: [id])
+  resetPasswordCode String?   @map("reset_password_code")
+  participantId     String    @unique @map("participant_id")
+  expiredAt         DateTime? @map("expired_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  participant Participants @relation(fields: [participantId], references: [id])
 
   @@map("auths")
 }
@@ -98,11 +98,11 @@ model Point {
 }
 
 model PublicationCart {
-  id                         String                       @id @default(uuid())
-  name                       String
-  description                String?
-  themePhoto                 String?                      @map("theme_photo")
-  
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  themePhoto  String? @map("theme_photo")
+
   assignmentsPublicationCart AssignmentsPublicationCart[]
   pointPublicationCart       PointPublicationCart[]
 
@@ -110,31 +110,31 @@ model PublicationCart {
 }
 
 model PointPublicationCart {
-  id                String          @id @default(uuid())
-  pointId           String          @map("point_id")
-  minParticipants   Int             @map("min_participants")
-  maxParticipants   Int             @map("max_participants")
+  id                String  @id @default(uuid())
+  pointId           String  @map("point_id")
+  minParticipants   Int     @map("min_participants")
+  maxParticipants   Int     @map("max_participants")
   status            Boolean
-  publicationCartId String          @map("publication_cart_id")
-  groupId           String          @map("group_id")
-  
-  group             Groups          @relation(fields: [groupId], references: [id])
-  point             Point           @relation(fields: [pointId], references: [id])
-  publicationCarts  PublicationCart @relation(fields: [publicationCartId], references: [id])
+  publicationCartId String  @map("publication_cart_id")
+  groupId           String  @map("group_id")
+
+  group            Groups          @relation(fields: [groupId], references: [id])
+  point            Point           @relation(fields: [pointId], references: [id])
+  publicationCarts PublicationCart @relation(fields: [publicationCartId], references: [id])
 
   @@map("point_publication_carts")
 }
 
 model Groups {
-  id                   String                 @id @default(uuid())
-  name                 String
-  config_end_hour      String                 @map("config_end_hour")
-  config_max           Int                    @map("config_max")
-  config_min           Int                    @map("config_min")
-  config_start_hour    String                 @map("config_start_hour")
-  config_weekday       Weekday                @map("config_weekday")
-  coordinatorId        String?                @map("coordinator_id")
- 
+  id                String  @id @default(uuid())
+  name              String
+  config_end_hour   String  @map("config_end_hour")
+  config_max        Int     @map("config_max")
+  config_min        Int     @map("config_min")
+  config_start_hour String  @map("config_start_hour")
+  config_weekday    Weekday @map("config_weekday")
+  coordinatorId     String? @map("coordinator_id")
+
   designations         Designations[]
   eventDayGroup        EventDayGroups[]
   coordinator          Participants?          @relation(fields: [coordinatorId], references: [id])
@@ -145,78 +145,78 @@ model Groups {
 }
 
 model EventDay {
-  id            String           @id @default(uuid())
-  name          String
-  description   String
-  type          EventType
-  status        EventStatus
-  weekday       Weekday
-  
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  type        EventType
+  status      EventStatus
+  weekday     Weekday
+
   eventDayGroup EventDayGroups[]
 
   @@map("event_days")
 }
 
 model EventDayGroups {
-  id         String   @id @default(uuid())
-  eventDayId String   @map("event_day_id")
-  groupId    String   @map("group_id")
-  
-  eventDay   EventDay @relation(fields: [eventDayId], references: [id])
-  group      Groups   @relation(fields: [groupId], references: [id])
+  id         String @id @default(uuid())
+  eventDayId String @map("event_day_id")
+  groupId    String @map("group_id")
+
+  eventDay EventDay @relation(fields: [eventDayId], references: [id])
+  group    Groups   @relation(fields: [groupId], references: [id])
 
   @@map("event_days_groups")
 }
 
 model Designations {
-  id                        String              @id @default(uuid())
-  groupId                   String              @map("group_id")
-  createdAt                 DateTime            @default(now()) @map("created_at")
-  updatedAt                 DateTime            @updatedAt @map("updated_at")
+  id                        String            @id @default(uuid())
+  groupId                   String            @map("group_id")
+  createdAt                 DateTime          @default(now()) @map("created_at")
+  updatedAt                 DateTime          @updatedAt @map("updated_at")
   name                      String
   status                    DesignationStatus
-  cancellationJustification String?             @map("cancellation_justification")
-  mandatoryPresence         Boolean             @default(true) @map("mandatory_presence")
-  designationDate           DateTime            @default(now()) @map("designation_date")
-  designationEndDate        DateTime            @default(now()) @map("designation_end_date")
-  
-  assignments               Assignments[]
-  group                     Groups              @relation(fields: [groupId], references: [id])
-  incidentHistories         IncidentHistories[]
+  cancellationJustification String?           @map("cancellation_justification")
+  mandatoryPresence         Boolean           @default(true) @map("mandatory_presence")
+  designationDate           DateTime          @default(now()) @map("designation_date")
+  designationEndDate        DateTime          @default(now()) @map("designation_end_date")
+
+  assignments       Assignments[]
+  group             Groups              @relation(fields: [groupId], references: [id])
+  incidentHistories IncidentHistories[]
 
   @@map("designations")
 }
 
 model AssignmentsParticipants {
-  id            String       @id @default(uuid())
-  assignmentId  String       @map("assignment_id")
-  participantId String       @map("participant_id")
-  
-  assignment    Assignments  @relation(fields: [assignmentId], references: [id])
-  participant   Participants @relation(fields: [participantId], references: [id])
+  id            String @id @default(uuid())
+  assignmentId  String @map("assignment_id")
+  participantId String @map("participant_id")
+
+  assignment  Assignments  @relation(fields: [assignmentId], references: [id])
+  participant Participants @relation(fields: [participantId], references: [id])
 
   @@map("assignments_participants")
 }
 
 model AssignmentsPublicationCart {
-  id                String          @id @default(uuid())
-  assignmentId      String          @map("assignment_id")
-  publicationCartId String          @map("publication_cart_id")
-  
-  assignment        Assignments     @relation(fields: [assignmentId], references: [id])
-  publicationCart   PublicationCart @relation(fields: [publicationCartId], references: [id])
+  id                String @id @default(uuid())
+  assignmentId      String @map("assignment_id")
+  publicationCartId String @map("publication_cart_id")
+
+  assignment      Assignments     @relation(fields: [assignmentId], references: [id])
+  publicationCart PublicationCart @relation(fields: [publicationCartId], references: [id])
 
   @@map("assignments_publication_carts")
 }
 
 model Assignments {
-  id                         String                       @id @default(uuid())
-  pointId                    String                       @map("point_id")
-  config_min                 Int                          @map("config_min")
-  config_max                 Int                          @map("config_max")
-  config_status              Boolean                      @map("config_status")
-  designationsId             String                       @map("designations_id")
-  
+  id             String  @id @default(uuid())
+  pointId        String  @map("point_id")
+  config_min     Int     @map("config_min")
+  config_max     Int     @map("config_max")
+  config_status  Boolean @map("config_status")
+  designationsId String  @map("designations_id")
+
   designations               Designations                 @relation(fields: [designationsId], references: [id])
   point                      Point                        @relation(fields: [pointId], references: [id])
   assignmentsParticipants    AssignmentsParticipants[]
@@ -226,25 +226,25 @@ model Assignments {
 }
 
 model Petitions {
-  id           String         @id @default(uuid())
-  protocol     String         @unique
-  status       PetitionStatus @default(CREATED)
-  publicUrl    String         @map("public_url")
-  privateUrl   String         @map("private_url")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
-  
+  id         String         @id @default(uuid())
+  protocol   String         @unique
+  status     PetitionStatus @default(CREATED)
+  publicUrl  String         @map("public_url")
+  privateUrl String         @map("private_url")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
   participants Participants[]
 
   @@map("petitions")
 }
 
 model Congregations {
-  id   Int @id @default(autoincrement())
-  name String
-  city String
+  id    Int    @id @default(autoincrement())
+  name  String
+  city  String
   state String
-  
+
   participants Participants[]
 
   @@map("congregations")
