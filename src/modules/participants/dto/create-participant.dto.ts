@@ -10,6 +10,7 @@ import {
     IsObject,
     IsUUID,
     IsUrl,
+    IsInt,
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
 import { CivilStatus, ParticipantSex } from "@prisma/client";
@@ -39,7 +40,7 @@ export class CreateParticipantDto {
     @IsUUID(4, { message: "Campo id da petição deve ser um UUID v4 válido" })
     petitionId: string;
 
-    @IsOptional({ message: 'Campo data de nascimento é obrigatório' })
+    @IsOptional()
     @Type(() => Date)
     @IsDate({ message: 'Campo data de nascimento deve ser uma data válida' })
     @Transform(({ value }) => {
@@ -58,40 +59,40 @@ export class CreateParticipantDto {
     })
     birthDate: Date;
 
-    @IsOptional({ message: 'Campo estado civil é obrigatório' })
+    @IsOptional()
     @Transform(({ value }) => value.toUpperCase())
     @IsEnum(CivilStatus, { message: `Campo estado civil deve ser válido. [ ${Object.values(CivilStatus).join(' | ')} ]` })
     civilStatus: CivilStatus;
 
-    @IsOptional({ message: 'Campo idiomas é obrigatório' })
+    @IsOptional()
     @IsArray({ message: 'Campo idiomas deve ser uma lista' })
     @IsString({ each: true, message: 'Os itens de idiomas devem ser textos' })
     @Transform(({ value }) => value.map((v: string) => v.toUpperCase()))
     languages: string[];
 
-    @IsOptional({ message: 'Campo endereço é obrigatório' })
+    @IsOptional()
     @IsString({ message: 'Campo endereço deve ser do tipo texto' })
     address: string;
 
-    @IsOptional({ message: 'Campo cidade é obrigatório' })
+    @IsOptional()
     @IsString({ message: 'Campo cidade deve ser do tipo texto' })
     city: string;
 
-    @IsOptional({ message: 'Campo estado é obrigatório' })
+    @IsOptional()
     @IsString({ message: 'Campo estado deve ser do tipo texto' })
     @Transform(({ value }) => value.toUpperCase())
     state: string;
 
-    @IsOptional({ message: 'Campo CEP é obrigatório' })
+    @IsOptional()
     @IsString({ message: 'Campo CEP deve ser do tipo texto' })
     zipCode: string;
 
     // Espiritual
-    @IsOptional({ message: 'Campo congregação é obrigatório' })
-    @IsString({ message: 'Campo congregação deve ser do tipo texto' })
-    congregation: string;
+    @IsOptional()
+    @IsInt({ message: 'Campo congregação deve ser do tipo inteiro' })
+    congregationId: number;
 
-    @IsOptional({ message: 'Campo data de batismo é obrigatório' })
+    @IsOptional()
     @IsDate({ message: 'Campo data de batismo deve ser uma data válida' })
     @Type(() => Date)
     baptismDate: Date;
@@ -103,11 +104,11 @@ export class CreateParticipantDto {
     attributions?: string[];
 
     // Outros
-    @IsOptional({ message: 'Campo possui filho menor é obrigatório' })
+    @IsOptional()
     @IsBoolean({ message: 'Campo possui filho menor deve ser booleano' })
     hasMinorChild: boolean;
 
-    @IsOptional({ message: 'Campo cônjuge participante é obrigatório' })
+    @IsOptional()
     @IsBoolean({ message: 'Campo cônjuge participante deve ser booleano' })
     spouseParticipant: boolean;
 

@@ -20,7 +20,7 @@ export class PetitionsService {
     async getAllPetitions(params: FindAllParams): Promise<Petitions[]> {
         const petitions = await this.prismaService.petitions.findMany({
             include: {
-                Participants: true
+                participants: true
             },
             ...(params.status && { where: { status: params.status } }),
             ...(params.protocol && { where: { protocol: { contains: params.protocol } } }),
@@ -30,15 +30,9 @@ export class PetitionsService {
             throw new NotFoundException('Nenhuma petição encontrada');
         }
 
-        const petitionsWithParticipants = petitions.map(petition => {
-            const { Participants, ...rest } = petition;
-            return {
-                ...rest,
-                participant: Participants.length > 0 ? Participants[0] : null
-            };
-        })
+       
 
-        return petitionsWithParticipants;
+        return petitions;
     }
 
     async changeStatusToWaitingInformation(id: string): Promise<Petitions> {

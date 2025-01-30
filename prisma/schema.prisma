@@ -24,8 +24,7 @@ model Participants {
   baptismDate             DateTime?                 @map("baptism_date")
   birthDate               DateTime?                 @map("birth_date")
   city                    String?                   @map("city")
-  civilStatus             CivilStatus?              @map("civil_status")
-  congregation            String?                   @map("congregation")
+  congregationId          Int?                      @map("congregation_id")
   hasMinorChild           Boolean?                  @map("has_minor_child")
   languages               String[]                  @map("languages")
   petitionId              String?                   @map("petition_id")
@@ -33,13 +32,16 @@ model Participants {
   state                   String?                   @map("state")
   zipCode                 String?                   @map("zip_code")
   cpf                     String?                   @unique
-  AssignmentsParticipants AssignmentsParticipants[]
-  Auth                    Auth?
-  Groups                  Groups[]
-  IncidentParticipant     IncidentHistories[]       @relation("ParticipantRelation")
-  IncidentReporter        IncidentHistories[]       @relation("ReporterRelation")
-  Petitions               Petitions?                @relation(fields: [petitionId], references: [id])
-  ParticipantsGroup       ParticipantsGroups[]
+  civilStatus             CivilStatus?              @map("civil_status")
+  
+  congregation            Congregations?            @relation(fields: [congregationId], references: [id])
+  assignmentsParticipants AssignmentsParticipants[]
+  auth                    Auth?
+  groups                  Groups[]
+  incidentParticipant     IncidentHistories[]       @relation("ParticipantRelation")
+  incidentReporter        IncidentHistories[]       @relation("ReporterRelation")
+  petitions               Petitions?                @relation(fields: [petitionId], references: [id])
+  participantsGroup       ParticipantsGroups[]
 
   @@map("participants")
 }
@@ -48,6 +50,7 @@ model ParticipantsGroups {
   id            String       @id @default(uuid())
   participantId String       @map("participant_id")
   groupId       String       @map("group_id")
+  
   group         Groups       @relation(fields: [groupId], references: [id])
   participant   Participants @relation(fields: [participantId], references: [id])
 
@@ -61,6 +64,7 @@ model Auth {
   participantId     String       @unique @map("participant_id")
   expiredAt         DateTime?    @map("expired_at")
   updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at")
+  
   participant       Participants @relation(fields: [participantId], references: [id])
 
   @@map("auths")
@@ -87,8 +91,8 @@ model Point {
   id                   String                 @id @default(uuid())
   name                 String
   locationPhoto        String?                @map("location_photo")
-  Assignments          Assignments[]
-  PointPublicationCart PointPublicationCart[]
+  assignments          Assignments[]
+  pointPublicationCart PointPublicationCart[]
 
   @@map("points")
 }
@@ -98,8 +102,9 @@ model PublicationCart {
   name                       String
   description                String?
   themePhoto                 String?                      @map("theme_photo")
-  AssignmentsPublicationCart AssignmentsPublicationCart[]
-  PointPublicationCart       PointPublicationCart[]
+  
+  assignmentsPublicationCart AssignmentsPublicationCart[]
+  pointPublicationCart       PointPublicationCart[]
 
   @@map("publication_carts")
 }
@@ -112,6 +117,7 @@ model PointPublicationCart {
   status            Boolean
   publicationCartId String          @map("publication_cart_id")
   groupId           String          @map("group_id")
+  
   group             Groups          @relation(fields: [groupId], references: [id])
   point             Point           @relation(fields: [pointId], references: [id])
   publicationCarts  PublicationCart @relation(fields: [publicationCartId], references: [id])
@@ -128,11 +134,12 @@ model Groups {
   config_start_hour    String                 @map("config_start_hour")
   config_weekday       Weekday                @map("config_weekday")
   coordinatorId        String?                @map("coordinator_id")
-  Designations         Designations[]
-  EventDayGroup        EventDayGroups[]
+ 
+  designations         Designations[]
+  eventDayGroup        EventDayGroups[]
   coordinator          Participants?          @relation(fields: [coordinatorId], references: [id])
-  ParticipantsGroup    ParticipantsGroups[]
-  PointPublicationCart PointPublicationCart[]
+  participantsGroup    ParticipantsGroups[]
+  pointPublicationCart PointPublicationCart[]
 
   @@map("groups")
 }
@@ -144,7 +151,8 @@ model EventDay {
   type          EventType
   status        EventStatus
   weekday       Weekday
-  EventDayGroup EventDayGroups[]
+  
+  eventDayGroup EventDayGroups[]
 
   @@map("event_days")
 }
@@ -153,6 +161,7 @@ model EventDayGroups {
   id         String   @id @default(uuid())
   eventDayId String   @map("event_day_id")
   groupId    String   @map("group_id")
+  
   eventDay   EventDay @relation(fields: [eventDayId], references: [id])
   group      Groups   @relation(fields: [groupId], references: [id])
 
@@ -170,9 +179,10 @@ model Designations {
   mandatoryPresence         Boolean             @default(true) @map("mandatory_presence")
   designationDate           DateTime            @default(now()) @map("designation_date")
   designationEndDate        DateTime            @default(now()) @map("designation_end_date")
+  
   assignments               Assignments[]
   group                     Groups              @relation(fields: [groupId], references: [id])
-  IncidentHistories         IncidentHistories[]
+  incidentHistories         IncidentHistories[]
 
   @@map("designations")
 }
@@ -181,6 +191,7 @@ model AssignmentsParticipants {
   id            String       @id @default(uuid())
   assignmentId  String       @map("assignment_id")
   participantId String       @map("participant_id")
+  
   assignment    Assignments  @relation(fields: [assignmentId], references: [id])
   participant   Participants @relation(fields: [participantId], references: [id])
 
@@ -191,6 +202,7 @@ model AssignmentsPublicationCart {
   id                String          @id @default(uuid())
   assignmentId      String          @map("assignment_id")
   publicationCartId String          @map("publication_cart_id")
+  
   assignment        Assignments     @relation(fields: [assignmentId], references: [id])
   publicationCart   PublicationCart @relation(fields: [publicationCartId], references: [id])
 
@@ -204,10 +216,11 @@ model Assignments {
   config_max                 Int                          @map("config_max")
   config_status              Boolean                      @map("config_status")
   designationsId             String                       @map("designations_id")
-  Designations               Designations                 @relation(fields: [designationsId], references: [id])
+  
+  designations               Designations                 @relation(fields: [designationsId], references: [id])
   point                      Point                        @relation(fields: [pointId], references: [id])
-  AssignmentsParticipants    AssignmentsParticipants[]
-  AssignmentsPublicationCart AssignmentsPublicationCart[]
+  assignmentsParticipants    AssignmentsParticipants[]
+  assignmentsPublicationCart AssignmentsPublicationCart[]
 
   @@map("assignments")
 }
@@ -220,7 +233,8 @@ model Petitions {
   privateUrl   String         @map("private_url")
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
-  Participants Participants[]
+  
+  participants Participants[]
 
   @@map("petitions")
 }
@@ -230,6 +244,8 @@ model Congregations {
   name String
   city String
   state String
+  
+  participants Participants[]
 
   @@map("congregations")
 }

@@ -20,7 +20,7 @@ export class ParticipantsService {
     this.logger.log('Buscando todos os participantes', {teste: 'teste'});
     return this.prisma.participants.findMany({
       include: {
-        Petitions: true,
+        petitions: true,
       }
     });
   }
@@ -30,7 +30,8 @@ export class ParticipantsService {
     const participant = await this.prisma.participants.findUnique({
       where: { id },
       include: {
-        Petitions: true,
+        petitions: true,
+        congregation: true,
       },
     });
 
@@ -38,11 +39,8 @@ export class ParticipantsService {
       throw new NotFoundException('Participante não encontrado');
     }
 
-    const { Petitions, ...rest } = participant;
-    return {
-      ...rest,
-      petitions: Petitions,
-    };
+   
+    return participant;
   }
 
   async findByEmail(email: string) {
@@ -50,7 +48,8 @@ export class ParticipantsService {
     const participant = await this.prisma.participants.findFirst({
       where: { email },
       include: {
-        Petitions: true,
+        petitions: true,
+        congregation: true,
       }
     });
 
