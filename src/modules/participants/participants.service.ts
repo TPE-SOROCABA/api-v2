@@ -82,7 +82,7 @@ export class ParticipantsService {
     });
     const participant = Participant.build(entity);
     await this.prisma.petitions.update({
-      where: { id: participant.petitionId },
+      where: { id: participant?.petitionId || updateParticipantDto?.petitionId },
       data: { status: participant.registrationStatus },
     });
     return entity;
@@ -104,10 +104,11 @@ export class ParticipantsService {
   }
 
   async toggleAdminAnalyst(userId: string) {
+    console.log('userId', userId);
     const participant = await this.prisma.participants.findUnique({
       where: { id: userId },
     });
-
+    
     if (!participant) {
       throw new NotFoundException('Participante não encontrado');
     }
