@@ -4,6 +4,7 @@ import { UpdateParticipantDto } from './dto/update-participant.dto';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
 import { Participant } from './entities/participants.entity';
+import { ParticipantProfile } from '@prisma/client';
 
 @Injectable()
 export class ParticipantsService {
@@ -100,5 +101,22 @@ export class ParticipantsService {
         });
       }
     }
+  }
+
+  async toggleAdminAnalyst(userId: string) {
+    const participant = await this.prisma.participants.findUnique({
+      where: { id: userId },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado');
+    }
+
+    const profile = participant.profile === ParticipantProfile.COORDINATOR ? ParticipantProfile.ADMIN_ANALYST : ParticipantProfile.COORDINATOR;
+    this.logger.log(`Alterando perfil do participante: ${userId} para ${profile}`);
+    return this.prisma.participants.update({
+      where: { id: userId },
+      data: { profile },
+    });
   }
 }

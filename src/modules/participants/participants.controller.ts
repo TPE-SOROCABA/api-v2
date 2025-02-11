@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Patch } from '@nestjs/common';
 import { ParticipantsService } from './participants.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { UpdateParticipantDto } from './dto/update-participant.dto';
@@ -31,5 +31,12 @@ export class ParticipantsController {
   @Get('emails/:email')
   findByEmail(@Param('email') email: string) {
     return this.participantsService.findByEmail(email);
+  }
+
+  // Rota experimental, para ambiente de desenvolvimento
+  @Patch('toggle-admin/:userId')
+  toggleAdminAnalyst(@Param('userId') userId: string) {
+    // depois colocar um middleware para verificar ambiente de desenvolvimento
+    return this.participantsService.toggleAdminAnalyst(userId);
   }
 }
