@@ -124,6 +124,20 @@ export class ParticipantsService {
   }
 
   async uploadPhoto(id: string, file: Express.Multer.File) {
+    this.logger.log(`Buscando participante: ${id}`);
+    const participant = await this.prisma.participants.findUnique({
+      where: { id },
+    });
+    if (participant.profilePhoto) {
+      try {
+        const key = participant.profilePhoto.split('/').pop();
+        await this.s3Service.deleteFile(key, `${process.env.NODE_ENV}-petitions`);
+        this.logger.log(`Foto antiga excluída: ${key}`);
+      } catch (error) {
+        this.logger.error(`Erro ao excluir a foto antiga: ${error}`); 
+      }
+    }
+
     this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
     const image = fs.readFileSync(file.path);
 
