@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Body, Put, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Patch, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { ParticipantsService } from './participants.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { UpdateParticipantDto } from './dto/update-participant.dto';
 import { FindOneParams } from 'src/shared/dto/find-one-params.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'node:path';
 
 @Controller('participants')
 export class ParticipantsController {
@@ -38,5 +41,22 @@ export class ParticipantsController {
   toggleAdminAnalyst(@Param('userId') userId: string) {
     // depois colocar um middleware para verificar ambiente de desenvolvimento
     return this.participantsService.toggleAdminAnalyst(userId);
+  }
+
+  @Post(':id/photo')
+   @UseInterceptors(
+          FileInterceptor('file', {
+              storage: diskStorage({
+                  destination: './photo', // Pasta para salvar o PDF recebido
+                  filename: (req, file, callback) => {
+                      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                      const fileExtName = extname(file.originalname);
+                      callback(null, `${uniqueSuffix}${fileExtName}`);
+                  },
+              }),
+          }),
+      )
+  uploadPhoto(@Param() params: FindOneParams, @UploadedFile() file: Express.Multer.File) {
+    return this.participantsService.uploadPhoto(params.id, file);
   }
 }

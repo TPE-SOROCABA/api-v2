@@ -5,11 +5,13 @@ import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
 import { Participant } from './entities/participants.entity';
 import { ParticipantProfile } from '@prisma/client';
+import { S3Service } from 'src/infra/s3.service';
+import * as fs from 'fs';
 
 @Injectable()
 export class ParticipantsService {
   logger = new TransactionLogger(ParticipantsService.name);
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService, private readonly s3Service: S3Service) { }
 
   create(createParticipantDto: CreateParticipantDto) {
     const participant = Participant.build(createParticipantDto);
@@ -24,7 +26,7 @@ export class ParticipantsService {
       })
     ]).catch((error) => {
       this.logger.error(`Erro ao criar participante: ${error}`);
-      throw new InternalServerErrorException('Erro ao criar participante');  
+      throw new InternalServerErrorException('Erro ao criar participante');
     });
   }
 
@@ -108,7 +110,7 @@ export class ParticipantsService {
     const participant = await this.prisma.participants.findUnique({
       where: { id: userId },
     });
-    
+
     if (!participant) {
       throw new NotFoundException('Participante não encontrado');
     }
@@ -118,6 +120,28 @@ export class ParticipantsService {
     return this.prisma.participants.update({
       where: { id: userId },
       data: { profile },
+    });
+  }
+
+  async uploadPhoto(id: string, file: Express.Multer.File) {
+    this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
+    const image = fs.readFileSync(file.path);
+
+    this.logger.log(`Fazendo upload da imagem para o bucket S3...`);
+    const imageUrl = await this.s3Service.uploadFile({
+      ...file,
+      buffer: image,
+      mimetype: file.mimetype,
+      size: image.length,
+      originalname: file.originalname.replace('.pdf', '.png').replace(/ /g, '_'),
+    }, `${process.env.NODE_ENV}-petitions`); // depois mudar para participants-photo
+    this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
+    fs.unlinkSync(file.path);
+    this.logger.log(`Imagem temporária excluída: ${file.path}`);
+    this.logger.log(`Atualizando participante: ${id} com a URL da imagem`);
+    return this.prisma.participants.update({
+      where: { id },
+      data: { profilePhoto: imageUrl },
     });
   }
 }
