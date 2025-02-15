@@ -22,7 +22,7 @@ export class CreateParticipantDto {
     @IsString({ message: 'Campo nome deve ser do tipo texto' })
     name: string;
 
-    @IsNotEmpty({ message: 'Campo sexo é obrigatório' })
+    @IsNotEmpty({ message: 'Campo genero é obrigatório' })
     @Transform(({ value }) => value.toUpperCase())
     @IsEnum(ParticipantSex, { message: `Valor inválido para genero` })
     sex: ParticipantSex;

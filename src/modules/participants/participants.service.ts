@@ -4,7 +4,7 @@ import { UpdateParticipantDto } from './dto/update-participant.dto';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
 import { Participant } from './entities/participants.entity';
-import { ParticipantProfile } from '@prisma/client';
+import { ParticipantProfile, PetitionStatus } from '@prisma/client';
 import { S3Service } from 'src/infra/s3.service';
 import * as fs from 'fs';
 
@@ -85,8 +85,13 @@ export class ParticipantsService {
       data: updateParticipantDto,
     });
     const participant = Participant.build(entity);
-    await this.prisma.petitions.update({
-      where: { id: participant?.petitionId || updateParticipantDto?.petitionId },
+    await this.prisma.petitions.updateMany({
+      where: {
+        id: participant?.petitionId || updateParticipantDto?.petitionId,
+        status: {
+          in: [PetitionStatus.CREATED, PetitionStatus.WAITING, PetitionStatus.WAITING_INFORMATION]
+        }
+      },
       data: { status: participant.registrationStatus },
     });
     return entity;
@@ -136,7 +141,7 @@ export class ParticipantsService {
         await this.s3Service.deleteFile(key, `${process.env.NODE_ENV}-petitions`);
         this.logger.log(`Foto antiga excluída: ${key}`);
       } catch (error) {
-        this.logger.error(`Erro ao excluir a foto antiga: ${error}`); 
+        this.logger.error(`Erro ao excluir a foto antiga: ${error}`);
       }
     }
 
