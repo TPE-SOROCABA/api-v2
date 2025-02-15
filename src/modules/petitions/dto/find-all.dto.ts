@@ -9,6 +9,6 @@ export class FindAllParams {
   status: PetitionStatus;
 
   @IsOptional()
-  @IsString( { message: 'Campo protocol deve ser uma string' })
-  protocol: string;
+  @IsString( { message: 'Campo participant deve ser uma string' })
+  search: string;
 }

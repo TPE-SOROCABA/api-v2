@@ -37,6 +37,9 @@ export class PetitionsController {
                 }
                 callback(null, true);
             },
+            limits: {
+                fileSize: 10 * 1024 * 1024, // Limite de 10MB
+            },
         }),
     )
     async uploadFile(@UploadedFile() file: Express.Multer.File) {
@@ -59,6 +62,9 @@ export class PetitionsController {
                     return callback(new BadRequestException('Apenas arquivos PDF são aceitos'), false);
                 }
                 callback(null, true);
+            },
+            limits: {
+                fileSize: 10 * 1024 * 1024, // Limite de 10MB
             },
         }),
     )

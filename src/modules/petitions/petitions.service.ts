@@ -18,19 +18,34 @@ export class PetitionsService {
     ) { }
 
     async getAllPetitions(params: FindAllParams): Promise<Petitions[]> {
+        const orConditions = [];
+        if (params.search) {
+            orConditions.push({ protocol: { contains: params.search } });
+            orConditions.push({
+                participants: {
+                    some: {
+                        name: {
+                            contains: params.search,
+                            mode: 'insensitive'
+                        }
+                    }
+                }
+            });
+        }
+
         const petitions = await this.prismaService.petitions.findMany({
             include: {
                 participants: true
             },
-            ...(params.status && { where: { status: params.status } }),
-            ...(params.protocol && { where: { protocol: { contains: params.protocol } } }),
+            where: {
+                ...(params.status ? { status: params.status } : {}),
+                OR: orConditions.length > 0 ? orConditions : undefined
+            }
         });
 
         if (!petitions) {
             throw new NotFoundException('Nenhuma petição encontrada');
         }
-
-       
 
         return petitions;
     }
