@@ -24,7 +24,7 @@ export class CreateParticipantDto {
 
     @IsNotEmpty({ message: 'Campo sexo é obrigatório' })
     @Transform(({ value }) => value.toUpperCase())
-    @IsEnum(ParticipantSex, { message: `Campo sexo deve ser válido. [ ${Object.values(ParticipantSex).join(' | ')} ]` })
+    @IsEnum(ParticipantSex, { message: `Valor inválido para genero` })
     sex: ParticipantSex;
 
     @IsNotEmpty({ message: 'Campo telefone é obrigatório' })
@@ -37,7 +37,7 @@ export class CreateParticipantDto {
     email: string;
 
     @IsNotEmpty({ message: 'Campo id da petição é obrigatório' })
-    @IsUUID(4, { message: "Campo id da petição deve ser um UUID v4 válido" })
+    @IsUUID(4, { message: "Valor inválido para id da petição" })
     petitionId: string;
 
     @IsOptional()
@@ -61,7 +61,7 @@ export class CreateParticipantDto {
 
     @IsOptional()
     @Transform(({ value }) => value.toUpperCase())
-    @IsEnum(CivilStatus, { message: `Campo estado civil deve ser válido. [ ${Object.values(CivilStatus).join(' | ')} ]` })
+    @IsEnum(CivilStatus, { message: `Valor inválido para estado civil` })
     civilStatus: CivilStatus;
 
     @IsOptional()
@@ -98,8 +98,8 @@ export class CreateParticipantDto {
     baptismDate: Date;
 
     @IsOptional()
-    @IsArray({ message: 'Campo atribuições deve ser uma lista' })
-    @IsString({ each: true, message: 'Os itens de atribuições devem ser textos' })
+    @IsArray({ message: 'Valor inválido para privilégios' })
+    @IsString({ each: true, message: 'Os itens de privilégios devem ser textos' })
     @Transform(({ value }) => value.map((v: string) => v.toUpperCase()))
     attributions?: string[];
 
@@ -113,7 +113,7 @@ export class CreateParticipantDto {
     spouseParticipant: boolean;
 
     @IsOptional()
-    @IsArray({ message: 'Campo availability deve ser uma lista' })
+    @IsArray({ message: 'Campo disponibilidade deve ser uma lista' })
     @ValidateNested({ each: true })
     @Type(() => AvailabilityItem)
     availability?: any[];
@@ -124,7 +124,7 @@ export class CreateParticipantDto {
 }
 
 export class AvailabilityItem {
-    @IsInt({ message: 'weekDay deve ser um valor inteiro' })
+    @IsInt({ message: 'Valor inválido para dia da semana' })
     weekDay: number;
 
     @IsBoolean({ message: 'morning deve ser um valor booleano' })

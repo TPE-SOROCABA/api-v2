@@ -5,7 +5,7 @@ import { IsOptional, IsEnum, IsString } from 'class-validator';
 export class FindAllParams {
   @IsOptional()
   @Transform(({ value }) => value.toUpperCase())
-  @IsEnum(PetitionStatus, { message: `Campo status deve ser válido. [ ${Object.values(PetitionStatus).join(' | ')} ]` })
+  @IsEnum(PetitionStatus, { message: `Valor inválido para status.` })
   status: PetitionStatus;
 
   @IsOptional()

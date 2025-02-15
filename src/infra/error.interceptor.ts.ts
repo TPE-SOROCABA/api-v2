@@ -7,28 +7,35 @@ import { TransactionLogger } from './transaction.logger';
 @Injectable()
 export class ErrorInterceptor implements NestInterceptor {
   logger = new TransactionLogger(ErrorInterceptor.name);
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    this.logger.log('Interceptando requisição...');
     return next.handle().pipe(
       catchError((error) => {
         const transactionId = TransactionContext.getTransactionId();
+        this.logger.error(`Erro interceptado: ${error.message}`, error.stack);
 
         if (transactionId) {
-          // Se o transactionId estiver disponível, adicione-o à mensagem do erro
+          this.logger.log(`ID da transação: ${transactionId}`);
           if (error instanceof HttpException) {
             const response = context.switchToHttp().getResponse<Response>();
             const responseBody = error.getResponse();
+            this.logger.error(`HttpException ocorreu: ${JSON.stringify(responseBody)}`);
             responseBody['transactionId'] = transactionId;
             response.status(error.getStatus()).json(responseBody);
           } else {
-            // Caso o erro não seja uma HttpException, usamos um erro genérico
             const response = context.switchToHttp().getResponse<Response>();
+            this.logger.error('Erro não HttpException ocorreu. Enviando resposta de erro genérica.');
             response.status(500).json({
               statusCode: 500,
-              message: `Internal server error. ${transactionId}`,
+              message: `Erro interno do servidor. ${transactionId}`,
             });
           }
-        } 
-        this.logger.error(error);
+        } else {
+          this.logger.warn('Nenhum ID de transação encontrado.');
+        }
+        
+        this.logger.error('Registrando erro e relançando...');
         throw error;
       }),
     );

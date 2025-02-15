@@ -13,21 +13,23 @@ export class ParticipantsService {
   logger = new TransactionLogger(ParticipantsService.name);
   constructor(private prisma: PrismaService, private readonly s3Service: S3Service) { }
 
-  create(createParticipantDto: CreateParticipantDto) {
+  async create(createParticipantDto: CreateParticipantDto) {
     const participant = Participant.build(createParticipantDto);
     this.logger.log(`Criando participante `, createParticipantDto.name);
-    return this.prisma.$transaction([
-      this.prisma.participants.create({
-        data: createParticipantDto,
-      }),
-      this.prisma.petitions.update({
-        where: { id: createParticipantDto.petitionId },
-        data: { status: participant.registrationStatus },
-      })
-    ]).catch((error) => {
+    try {
+      return await this.prisma.$transaction([
+        this.prisma.participants.create({
+          data: createParticipantDto,
+        }),
+        this.prisma.petitions.update({
+          where: { id: createParticipantDto.petitionId },
+          data: { status: participant.registrationStatus },
+        })
+      ]);
+    } catch (error) {
       this.logger.error(`Erro ao criar participante: ${error}`);
       throw new InternalServerErrorException('Erro ao criar participante');
-    });
+    }
   }
 
   findAll() {
