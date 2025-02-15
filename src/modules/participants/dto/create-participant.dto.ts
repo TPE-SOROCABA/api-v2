@@ -23,13 +23,13 @@ export class CreateParticipantDto {
     name: string;
 
     @IsNotEmpty({ message: 'Campo genero é obrigatório' })
-    @Transform(({ value }) => value.toUpperCase())
+    @Transform(({ value }) => value?.toUpperCase())
     @IsEnum(ParticipantSex, { message: `Valor inválido para genero` })
     sex: ParticipantSex;
 
     @IsNotEmpty({ message: 'Campo telefone é obrigatório' })
     @IsString({ message: 'Campo telefone deve ser do tipo texto' })
-    @Transform(({ value }) => value.replace(/[^0-9]/g, ''))
+    @Transform(({ value }) => value?.replace(/[^0-9]/g, ''))
     phone: string;
 
     @IsNotEmpty({ message: 'Campo email é obrigatório' })
@@ -60,14 +60,14 @@ export class CreateParticipantDto {
     birthDate: Date;
 
     @IsOptional()
-    @Transform(({ value }) => value.toUpperCase())
+    @Transform(({ value }) => value?.toUpperCase())
     @IsEnum(CivilStatus, { message: `Valor inválido para estado civil` })
     civilStatus: CivilStatus;
 
     @IsOptional()
     @IsArray({ message: 'Campo idiomas deve ser uma lista' })
     @IsString({ each: true, message: 'Os itens de idiomas devem ser textos' })
-    @Transform(({ value }) => value.map((v: string) => v.toUpperCase()))
+    @Transform(({ value }) => value.map((v: string) => v?.toUpperCase()))
     languages: string[];
 
     @IsOptional()
@@ -80,7 +80,7 @@ export class CreateParticipantDto {
 
     @IsOptional()
     @IsString({ message: 'Campo estado deve ser do tipo texto' })
-    @Transform(({ value }) => value.toUpperCase())
+    @Transform(({ value }) => value?.toUpperCase())
     state: string;
 
     @IsOptional()
@@ -100,7 +100,7 @@ export class CreateParticipantDto {
     @IsOptional()
     @IsArray({ message: 'Valor inválido para privilégios' })
     @IsString({ each: true, message: 'Os itens de privilégios devem ser textos' })
-    @Transform(({ value }) => value.map((v: string) => v.toUpperCase()))
+    @Transform(({ value }) => value.map((v: string) => v?.toUpperCase()))
     attributions?: string[];
 
     // Outros

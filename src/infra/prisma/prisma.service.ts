@@ -1,29 +1,54 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { Logger } from '@nestjs/common';
 
-@Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  logger = new Logger(PrismaService.name);
-  async onModuleInit() {
+export class PrismaService extends PrismaClient {
+  private logger = new Logger(PrismaService.name);
+  public isConnected = false;
+
+  constructor() {
+    super();
+    this.$on('connect' as never, () => {
+      this.isConnected = true;
+      this.logger.log('🔌 Conexão estabelecida com o banco de dados.');
+    });
+
+    process.on('beforeExit' as never, () => {
+      this.isConnected = false;
+      this.logger.warn('⚠️ Conexão com o banco de dados foi perdida.');
+    });
+
+    this.$on('error' as never, (error) => {
+      this.isConnected = false;
+      this.logger.error(`🔥 Erro no Prisma: `, error);
+    });
+  }
+
+  async connectToDatabase() {
+    if (this.isConnected) return;
+
     let retries = 5;
     while (retries > 0) {
       try {
         await this.$connect();
-        this.logger.debug('Conexão estabelecida com o banco de dados.');
-        break;
+        this.logger.log('✅ Banco conectado com sucesso.');
+        return;
       } catch (error) {
-        this.logger.error(`Erro ao conectar: ${error.message}. Tentando novamente...`);
+        this.logger.warn(`Tentativa ${6 - retries} de reconexão falhou: ${error.message}`);
         retries--;
-        await new Promise((res) => setTimeout(res, (5 - retries) * 1000)); // Exponential backoff
+        await new Promise((res) => setTimeout(res, (5 - retries) * 1000)); // Backoff exponencial
       }
     }
-  
-    if (retries === 0) {
-      this.logger.error('Não foi possível conectar ao banco após várias tentativas.');
-    }
+
+    this.logger.error('❌ Não foi possível reconectar ao banco após várias tentativas.');
+  }
+
+  async onModuleInit() {
+    await this.connectToDatabase();
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
+    this.isConnected = false;
+    this.logger.log('🔌 Conexão com o banco encerrada.');
   }
 }

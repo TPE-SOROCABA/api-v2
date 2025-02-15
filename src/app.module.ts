@@ -9,6 +9,7 @@ import { TransactionMiddleware } from './middleware/transaction.middleware';
 import { CongregationsModule } from './modules/congregations/congregations.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './infra/prisma/prisma.module';
+import { PrismaConnectionMiddleware } from './infra/prisma/prisma-connection.middleware';
 
 @Module({
   imports: [PrismaModule, PetitionsModule, ParticipantsModule,  CongregationsModule, ScheduleModule.forRoot()],
@@ -24,5 +25,6 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(TransactionMiddleware).forRoutes('*');
     consumer.apply(LoggingTimeMiddleware).forRoutes('*');
+    consumer.apply(PrismaConnectionMiddleware).forRoutes('*');
   }
 }

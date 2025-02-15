@@ -4,7 +4,7 @@ import { IsOptional, IsEnum, IsString } from 'class-validator';
 
 export class FindAllParams {
   @IsOptional()
-  @Transform(({ value }) => value.toUpperCase())
+  @Transform(({ value }) => value?.toUpperCase())
   @IsEnum(PetitionStatus, { message: `Valor inválido para status.` })
   status: PetitionStatus;
 
