@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
-import { ErrorInterceptor } from './infra/error.interceptor.ts';
+import { PrismaExceptionFilter } from './infra/prisma/prisma-exception.filter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -9,10 +9,11 @@ async function bootstrap() {
   logger.log('Iniciando aplicação NestJS...');
 
   const app = await NestFactory.create(AppModule, {
-    logger: process.env.NODE_ENV === 'test' ? ['log', 'error', 'warn', 'debug', 'verbose'] : console,
+    // logger: process.env.NODE_ENV === 'test' ? ['log', 'error', 'warn', 'debug', 'verbose'] : console,
   });
   app.enableCors();
-  app.useGlobalInterceptors(new ErrorInterceptor());
+  // app.useGlobalInterceptors(new ErrorInterceptor());
+  app.useGlobalFilters(new PrismaExceptionFilter());
   logger.log('Aplicando configurações globais...');
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,

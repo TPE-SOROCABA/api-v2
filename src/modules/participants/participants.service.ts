@@ -28,7 +28,7 @@ export class ParticipantsService {
       ]);
     } catch (error) {
       this.logger.error(`Erro ao criar participante: ${error}`);
-      throw new InternalServerErrorException('Erro ao criar participante');
+      throw error
     }
   }
 
