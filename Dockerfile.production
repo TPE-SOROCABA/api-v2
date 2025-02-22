@@ -49,9 +49,9 @@ RUN mkdir -p /usr/share/tessdata
 
 RUN mkdir -p /app/uploads
 
-# Baixar manualmente o idioma Português
-RUN wget -O /usr/share/tessdata/por.traineddata \
-    https://github.com/tesseract-ocr/tessdata/raw/main/por.traineddata
+# Baixar manualmente o idioma Latim
+RUN wget -O /usr/share/tessdata/Latin.traineddata \
+    https://github.com/tesseract-ocr/tessdata/raw/main/script/Latin.traineddata
 
 # Criar ambiente virtual Python e ativá-lo
 RUN python3 -m venv /app/venv

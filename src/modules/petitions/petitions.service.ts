@@ -6,7 +6,7 @@ import { TransactionLogger } from "src/infra/transaction.logger";
 import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import { Petitions, PetitionStatus } from "@prisma/client";
 import { FindAllParams } from "./dto/find-all.dto";
-import { OcrService } from 'src/infra/ocr.service';
+import { ImageParameters, OcrService } from 'src/infra/ocr.service';
 
 @Injectable()
 export class PetitionsService {
@@ -148,8 +148,13 @@ export class PetitionsService {
             this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
             urls.push(imageUrl);
         }
-        const nameRaw = await this.ocrService.processImage(imagesPath[0]);
-        const name = nameRaw.replace(/\s/g, ' ').trim();
+        const paramsName: ImageParameters = {
+            "x": 526,
+            "y": 354,
+            "width": 1766,
+            "height": 66
+        }
+        const name = await this.ocrService.processImage(imagesPath[0], paramsName);
         imagesPath.forEach(imagePath => {
             fs.unlinkSync(imagePath);
             this.logger.log(`Imagem temporária excluída: ${imagePath}`);

@@ -10,15 +10,19 @@ import { CongregationsModule } from './modules/congregations/congregations.modul
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { PrismaConnectionMiddleware } from './infra/prisma/prisma-connection.middleware';
+import { ConvertPdfToImagesUseCase } from './modules/petitions/convert-pdf-to-images.usecase';
+import { OcrService } from './infra/ocr.service';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule,  CongregationsModule, ScheduleModule.forRoot()],
+  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot()],
   controllers: [AppController],
   providers: [
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
+    ConvertPdfToImagesUseCase,
+    OcrService
   ],
 })
 export class AppModule implements NestModule {
