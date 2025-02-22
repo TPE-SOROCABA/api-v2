@@ -39,24 +39,47 @@ export class S3Service {
     this.logger.log(`Chave gerada para o arquivo: ${fileKey}`);
 
     // Faz o upload do arquivo para o S3
-    try {
-      this.logger.log('Iniciando envio do arquivo para o S3...');
-      await this.s3.send(new PutObjectCommand({
-        Bucket: bucketName,
-        Key: fileKey,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-        ACL: 'public-read',
-      }));
-      this.logger.log(`Arquivo "${file.originalname}" enviado com sucesso para o S3.`);
-    } catch (error) {
-      this.logger.error(`Erro ao fazer upload do arquivo para o S3: ${error.message}`);
-      throw new InternalServerErrorException('Erro ao fazer upload do arquivo', error.message);
-    }
+    this.uploadFileWithRetry(bucketName, fileKey, file);
 
     const fileUrl = `${process.env.CLOUDFRONT_PETITION_URL}/${fileKey}`;
     this.logger.log(`URL pública gerada para o arquivo: ${fileUrl}`);
     return fileUrl;
+  }
+
+  private async uploadFileWithRetry(bucketName: string, fileKey: string, file: Express.Multer.File) {
+    const maxRetries = 3;
+    let attempt = 0;
+
+    const uploadToS3 = async (): Promise<boolean> => {
+      try {
+        this.logger.log('Iniciando envio do arquivo para o S3...');
+        await this.s3.send(new PutObjectCommand({
+          Bucket: bucketName,
+          Key: fileKey,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          ACL: 'public-read',
+        }));
+        this.logger.log(`Arquivo "${file.originalname}" enviado com sucesso para o S3.`);
+        return true;
+      } catch (error) {
+        this.logger.error(`Erro ao fazer upload do arquivo para o S3: ${error.message}`);
+        return false;
+      }
+    };
+
+    while (attempt < maxRetries) {
+      const success = await uploadToS3();
+      if (success) return;
+
+      attempt++;
+      if (attempt < maxRetries) {
+        this.logger.log(`Tentativa ${attempt} falhou. Tentando novamente...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Aguarda 2 segundos antes de tentar novamente
+      }
+    }
+
+    this.logger.error('Falha ao enviar o arquivo para o S3 após 3 tentativas.');
   }
 
   async deleteFile(fileKey: string, bucketName: string): Promise<void> {

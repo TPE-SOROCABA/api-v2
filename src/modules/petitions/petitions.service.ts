@@ -64,7 +64,11 @@ export class PetitionsService {
     }
 
     async uploadFile(file: Express.Multer.File): Promise<Petitions> {
-        const { urls, name } = await this.uploadS3AndApplyOCR(file);
+        const imagesPath = await this.convertPdfAndImage(file);
+        const [urls, name] = await Promise.all([
+            this.uploadS3(imagesPath, file),
+            this.extractNameFromImage(imagesPath[0])
+        ])
 
         this.logger.log('Gerando protocolo único...');
         let isProtocolUnique = false;
@@ -109,13 +113,12 @@ export class PetitionsService {
         const keyTwo = petition.privateUrl.split('/').pop();
         await this.s3Service.deleteFile(keyOne, `${process.env.NODE_ENV}-petitions`);
         await this.s3Service.deleteFile(keyTwo, `${process.env.NODE_ENV}-petitions`);
-
-        const { urls, name } = await this.uploadS3AndApplyOCR(file);
+        const imagesPath = await this.convertPdfAndImage(file);
+        const urls = await this.uploadS3(imagesPath, file);
 
         const updatedPetition = await this.prismaService.petitions.update({
             where: { id },
             data: {
-                name,
                 publicUrl: urls[0],
                 privateUrl: urls[1]
             }
@@ -124,16 +127,8 @@ export class PetitionsService {
         return updatedPetition;
     }
 
-    private async uploadS3AndApplyOCR(file: Express.Multer.File) {
-        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
-
-        // Converte o PDF em imagens
-        this.logger.log('Convertendo PDF para imagens...');
-        const imagesPath = await this.convertPdfToImagesUseCase.execute(file.path);
-        this.logger.log(`PDF convertido. Total de imagens geradas: ${imagesPath.length}`);
-
-        const urls = [];
-        for (const imagePath of imagesPath) {
+    private async uploadS3(imagesPath: string[], file: Express.Multer.File) {
+        const uploadPromises = imagesPath.map(async (imagePath) => {
             this.logger.log(`Lendo imagem gerada: ${imagePath}`);
             const image = fs.readFileSync(imagePath);
 
@@ -146,20 +141,33 @@ export class PetitionsService {
                 originalname: file.originalname.replace('.pdf', '.png').replace(/ /g, '_'),
             }, `${process.env.NODE_ENV}-petitions`);
             this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
-            urls.push(imageUrl);
-        }
-        const paramsName: ImageParameters = {
-            "x": 526,
-            "y": 354,
-            "width": 1766,
-            "height": 66
-        }
-        const name = await this.ocrService.processImage(imagesPath[0], paramsName);
-        imagesPath.forEach(imagePath => {
-            fs.unlinkSync(imagePath);
-            this.logger.log(`Imagem temporária excluída: ${imagePath}`);
+            return imageUrl;
         });
-        return { name, urls }
+
+        const urls = await Promise.all(uploadPromises);
+        return urls
+    }
+
+    private async convertPdfAndImage(file: Express.Multer.File): Promise<string[]> {
+        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
+        // Converte o PDF em imagens
+        this.logger.log('Convertendo PDF para imagens...');
+        const imagesPath = await this.convertPdfToImagesUseCase.execute(file.path);
+        this.logger.log(`PDF convertido. Total de imagens geradas: ${imagesPath.length}`);
+        return imagesPath;
+    }
+
+    private async extractNameFromImage(imagePath: string): Promise<string> {
+        this.logger.log(`Iniciando OCR para extrair nome da imagem: ${imagePath}`);
+        const nameParams: ImageParameters = {
+            x: 526,
+            y: 354,
+            width: 1766,
+            height: 66
+        };
+        const name = await this.ocrService.processImage(imagePath, nameParams);
+        this.logger.log(`Nome extraído da imagem: ${name}`);
+        return name;
     }
 
     private generateProtocol() {
