@@ -1,8 +1,7 @@
-# Etapa de build
-FROM node:22 as builder
+# Etapa final para produção
+FROM node:22-alpine
 
 WORKDIR /app
-
 
 # Copie os arquivos necessários para instalar as dependências
 COPY package*.json ./
@@ -12,14 +11,6 @@ RUN npm ci --quiet
 
 # Copie o código fonte para a imagem
 COPY . .
-# Execute o comando de build
-RUN npx prisma generate
-RUN npm run build
-
-# Etapa final para produção
-FROM node:22-alpine
-
-WORKDIR /app
 
 # Instale dependências do sistema (incluindo Tesseract OCR e ferramentas de build)
 RUN apk add --no-cache \
@@ -38,16 +29,8 @@ RUN apk add --no-cache \
     g++ \
     musl-dev
 
-# Copie os arquivos necessários para rodar a aplicação
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/ocr_extractor.py ./ocr_extractor.py
-COPY package*.json ./
-
 # Criar pasta do tessdata (caso não exista)
 RUN mkdir -p /usr/share/tessdata
-
-RUN mkdir -p /app/uploads
 
 # Baixar manualmente o idioma Português
 RUN wget -O /usr/share/tessdata/por.traineddata \
@@ -60,9 +43,8 @@ ENV PATH="/app/venv/bin:$PATH"
 # Instalar pytesseract no ambiente virtual
 RUN pip install --no-cache-dir pytesseract
 
-# Instale apenas dependências de produção
-RUN npm ci --only=prod --quiet
+RUN mkdir -p /app/uploads
 
 RUN npx prisma generate
 # Comando de inicialização
-CMD [ "npm", "run", "start:prod" ]
+CMD [ "npm", "run", "start:dev" ]

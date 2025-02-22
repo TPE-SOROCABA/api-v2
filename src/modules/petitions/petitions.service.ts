@@ -6,6 +6,7 @@ import { TransactionLogger } from "src/infra/transaction.logger";
 import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import { Petitions, PetitionStatus } from "@prisma/client";
 import { FindAllParams } from "./dto/find-all.dto";
+import { OcrService } from 'src/infra/ocr.service';
 
 @Injectable()
 export class PetitionsService {
@@ -14,7 +15,8 @@ export class PetitionsService {
     constructor(
         private readonly s3Service: S3Service,
         private readonly convertPdfToImagesUseCase: ConvertPdfToImagesUseCase,
-        private readonly prismaService: PrismaService
+        private readonly prismaService: PrismaService,
+        private readonly ocrService: OcrService
     ) { }
 
     async getAllPetitions(params: FindAllParams): Promise<Petitions[]> {
@@ -62,7 +64,7 @@ export class PetitionsService {
     }
 
     async uploadFile(file: Express.Multer.File): Promise<Petitions> {
-        const urls = await this.uploadS3(file);
+        const { urls, name } = await this.uploadS3AndApplyOCR(file);
 
         this.logger.log('Gerando protocolo único...');
         let isProtocolUnique = false;
@@ -84,6 +86,7 @@ export class PetitionsService {
         this.logger.log('Criando registro na base de dados...');
         const petition = await this.prismaService.petitions.create({
             data: {
+                name,
                 protocol: protocol,
                 publicUrl: urls[0],
                 privateUrl: urls[1],
@@ -107,11 +110,12 @@ export class PetitionsService {
         await this.s3Service.deleteFile(keyOne, `${process.env.NODE_ENV}-petitions`);
         await this.s3Service.deleteFile(keyTwo, `${process.env.NODE_ENV}-petitions`);
 
-        const urls = await this.uploadS3(file);
+        const { urls, name } = await this.uploadS3AndApplyOCR(file);
 
         const updatedPetition = await this.prismaService.petitions.update({
             where: { id },
             data: {
+                name,
                 publicUrl: urls[0],
                 privateUrl: urls[1]
             }
@@ -120,7 +124,7 @@ export class PetitionsService {
         return updatedPetition;
     }
 
-    private async uploadS3(file: Express.Multer.File) {
+    private async uploadS3AndApplyOCR(file: Express.Multer.File) {
         this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
 
         // Converte o PDF em imagens
@@ -142,13 +146,15 @@ export class PetitionsService {
                 originalname: file.originalname.replace('.pdf', '.png').replace(/ /g, '_'),
             }, `${process.env.NODE_ENV}-petitions`);
             this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
-
-            fs.unlinkSync(imagePath);
-            this.logger.log(`Imagem temporária excluída: ${imagePath}`);
-
             urls.push(imageUrl);
         }
-        return urls;
+        const nameRaw = await this.ocrService.processImage(imagesPath[0]);
+        const name = nameRaw.replace(/\s/g, ' ').trim();
+        imagesPath.forEach(imagePath => {
+            fs.unlinkSync(imagePath);
+            this.logger.log(`Imagem temporária excluída: ${imagePath}`);
+        });
+        return { name, urls }
     }
 
     private generateProtocol() {

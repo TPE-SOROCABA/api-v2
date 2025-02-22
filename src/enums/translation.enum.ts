@@ -1,0 +1,26 @@
+// translation.enum.ts
+export enum TranslationEnum {
+    id = 'id',
+    name = 'nome',
+    phone = 'telefone',
+    profile_photo = 'foto_perfil',
+    profile = 'perfil',
+    computed = 'computado',
+    sex = 'gênero',
+    email = 'email',
+    address = 'endereco',
+    attributions = 'atribuições',
+    baptism_date = 'data batismo',
+    birth_date = 'data nascimento',
+    city = 'cidade',
+    civil_status = 'estado civil',
+    has_minor_child = 'tem filho menor',
+    languages = 'idiomas',
+    petition_id = 'id peticao',
+    spouse_participant = 'conjuge participante',
+    state = 'estado',
+    zip_code = 'cep',
+    cpf = 'cpf',
+    congregation_id = 'id congregacao',
+    availability = 'disponibilidade'
+}

@@ -227,6 +227,7 @@ model Assignments {
 
 model Petitions {
   id         String         @id @default(uuid())
+  name       String
   protocol   String         @unique
   status     PetitionStatus @default(CREATED)
   publicUrl  String         @map("public_url")

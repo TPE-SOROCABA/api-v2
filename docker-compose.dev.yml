@@ -1,0 +1,28 @@
+version: '3.5'
+
+services:
+  tpe-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: api-tpe-dev
+    container_name: api-tpe-dev
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    environment:
+      - PORT=3000
+      - DATABASE_URL=$DATABASE_URL
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+      - AWS_REGION=$AWS_REGION
+      - NODE_ENV=dev
+      - CLOUDFRONT_PETITION_URL=$CLOUDFRONT_PETITION_URL
+      - TESSDATA_PREFIX=/usr/share/tessdata
+    volumes:
+      - ./src:/app/src
+    ports:
+      - '3000:3000'
