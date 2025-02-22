@@ -23,16 +23,7 @@ export class PetitionsService {
         const orConditions = [];
         if (params.search) {
             orConditions.push({ protocol: { contains: params.search } });
-            orConditions.push({
-                participants: {
-                    some: {
-                        name: {
-                            contains: params.search,
-                            mode: 'insensitive'
-                        }
-                    }
-                }
-            });
+            orConditions.push({ name: { contains: params.search, mode: 'insensitive' } });
         }
 
         const petitions = await this.prismaService.petitions.findMany({

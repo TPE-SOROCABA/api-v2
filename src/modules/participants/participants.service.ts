@@ -23,7 +23,7 @@ export class ParticipantsService {
         }),
         this.prisma.petitions.update({
           where: { id: createParticipantDto.petitionId },
-          data: { status: participant.registrationStatus },
+          data: { status: participant.registrationStatus, name: createParticipantDto.name },
         })
       ]);
     } catch (error) {
@@ -92,7 +92,7 @@ export class ParticipantsService {
           in: [PetitionStatus.CREATED, PetitionStatus.WAITING, PetitionStatus.WAITING_INFORMATION]
         }
       },
-      data: { status: participant.registrationStatus },
+      data: { status: participant.registrationStatus, name: participant.name },
     });
     return entity;
   }
