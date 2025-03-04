@@ -135,6 +135,9 @@ model Groups {
   config_weekday    Weekday @map("config_weekday")
   coordinatorId     String? @map("coordinator_id")
 
+  // Aqui adicionamos uma coluna JSON
+  additionalInfo Json? @map("additional_info")
+
   designations         Designations[]
   eventDayGroup        EventDayGroups[]
   coordinator          Participants?          @relation(fields: [coordinatorId], references: [id])

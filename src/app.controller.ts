@@ -57,10 +57,10 @@ export class AppController {
       "height": 76
     }
     const emailParams: ImageParameters = {
-      "x": 1564,
-      "y": 464,
-      "width": 730,
-      "height": 64
+      "x": 1576,
+      "y": 466,
+      "width": 736,
+      "height": 72
     }
     const phoneParams: ImageParameters = {
       "x": 1604,
