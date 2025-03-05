@@ -7,6 +7,7 @@ import { Participant } from './entities/participants.entity';
 import { ParticipantProfile, PetitionStatus } from '@prisma/client';
 import { S3Service } from 'src/infra/s3.service';
 import * as fs from 'fs';
+import { FindAllParticipantParams } from './dto/find-all-participants.params';
 
 @Injectable()
 export class ParticipantsService {
@@ -32,12 +33,25 @@ export class ParticipantsService {
     }
   }
 
-  findAll() {
+  findAll(params: FindAllParticipantParams) {
     this.logger.log('Buscando todos os participantes');
     return this.prisma.participants.findMany({
       include: {
         petitions: true,
         congregation: true,
+      },
+      where: {
+        name: {
+          contains: params.name || '',
+          mode: 'insensitive'
+        },
+        phone: {
+          contains: params.phone || ''
+        },
+        email: {
+          contains: params.email || ''
+        },
+        profile: params.profile || undefined
       }
     });
   }

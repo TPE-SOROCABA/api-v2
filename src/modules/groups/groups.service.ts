@@ -9,38 +9,59 @@ import { AdditionalInfoDto } from './dto/additional-info.dto';
 export class GroupsService {
     constructor(private readonly prisma: PrismaService) { }
 
-    // CREATE
     async create(createGroupDto: CreateGroupDto) {
         const additionalInfo = createGroupDto.additionalInfo ? instanceToPlain<AdditionalInfoDto>(createGroupDto.additionalInfo) : undefined;
         const coordinator = createGroupDto.coordinatorId ? { connect: { id: createGroupDto.coordinatorId } } : undefined;
-        return this.prisma.groups.create({
+        const group = await this.prisma.groups.create({
             data: {
                 name: createGroupDto.name,
-                config_end_hour: createGroupDto.config_end_hour,
-                config_max: createGroupDto.config_max,
-                config_min: createGroupDto.config_min,
-                config_start_hour: createGroupDto.config_start_hour,
-                config_weekday: createGroupDto.config_weekday,
+                configEndHour: createGroupDto.configEndHour,
+                configMax: createGroupDto.configMax,
+                configMin: createGroupDto.configMin,
+                configStartHour: createGroupDto.configStartHour,
+                configWeekday: createGroupDto.configWeekday,
                 additionalInfo: additionalInfo,
                 coordinator: coordinator,
+                status: createGroupDto.status,
+                type: createGroupDto.type,
             },
         });
+
+        return this.findOne(group.id);
     }
 
-    // READ ALL
     async findAll() {
-        return this.prisma.groups.findMany();
+        const groups = await this.prisma.groups.findMany({
+            include: {
+                participantsGroup: true,
+            }
+        });
+
+        return groups.map(group => {
+            const { participantsGroup, ...groupData } = group;
+            return {
+                ...groupData,
+                participants: participantsGroup.length
+            }
+        }
+        );
     }
 
-    // READ ONE
     async findOne(id: string) {
         const group = await this.prisma.groups.findUnique({
             where: { id },
+            include: {
+                participantsGroup: true
+            }
         });
         if (!group) {
             throw new NotFoundException(`Group with ID ${id} not found`);
         }
-        return group;
+        const { participantsGroup, ...groupData } = group;
+        return {
+            ...groupData,
+            participants: participantsGroup.length
+        }
     }
 
     // UPDATE
@@ -49,19 +70,23 @@ export class GroupsService {
         await this.findOne(id);
         const additionalInfo = updateGroupDto.additionalInfo ? instanceToPlain<AdditionalInfoDto>(updateGroupDto.additionalInfo) : undefined;
         const coordinator = updateGroupDto.coordinatorId ? { connect: { id: updateGroupDto.coordinatorId } } : undefined;
-        return this.prisma.groups.update({
+        await this.prisma.groups.update({
             where: { id },
             data: {
                 name: updateGroupDto.name,
-                config_end_hour: updateGroupDto.config_end_hour,
-                config_max: updateGroupDto.config_max,
-                config_min: updateGroupDto.config_min,
-                config_start_hour: updateGroupDto.config_start_hour,
-                config_weekday: updateGroupDto.config_weekday,
+                configEndHour: updateGroupDto.configEndHour,
+                configMax: updateGroupDto.configMax,
+                configMin: updateGroupDto.configMin,
+                configStartHour: updateGroupDto.configStartHour,
+                configWeekday: updateGroupDto.configWeekday,
                 additionalInfo: additionalInfo,
                 coordinator: coordinator,
+                status: updateGroupDto.status,
+                type: updateGroupDto.type,
             },
         });
+
+        return this.findOne(id);
     }
 
     // DELETE

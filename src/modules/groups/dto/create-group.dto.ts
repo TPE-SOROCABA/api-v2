@@ -1,6 +1,6 @@
-import { IsString, IsInt, IsOptional, IsEnum, ValidateNested } from 'class-validator';
+import { IsString, IsInt, IsOptional, IsEnum, ValidateNested, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Weekday } from '@prisma/client';
+import { GroupStatus, GroupType, Weekday } from '@prisma/client';
 import { AdditionalInfoDto } from './additional-info.dto';
 
 export class CreateGroupDto {
@@ -8,25 +8,31 @@ export class CreateGroupDto {
     name: string;
 
     @IsString()
-    config_end_hour: string;
+    configEndHour: string;
 
     @IsInt()
     @Type(() => Number)
-    config_max: number;
+    configMax: number;
 
     @IsInt()
     @Type(() => Number)
-    config_min: number;
+    configMin: number;
 
     @IsString()
-    config_start_hour: string;
+    configStartHour: string;
 
     @IsEnum(Weekday)
-    config_weekday: Weekday;
+    configWeekday: Weekday;
 
-    @IsOptional()
+    @IsEnum(GroupStatus)
+    status: GroupStatus;
+
+    @IsEnum(GroupType)
+    type: GroupType;
+
+    @IsNotEmpty({ message: 'ID do coordenador é obrigatório' })
     @IsString()
-    coordinatorId?: string;
+    coordinatorId: string;
 
     @IsOptional()
     @ValidateNested()
