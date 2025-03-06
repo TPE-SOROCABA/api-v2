@@ -53,7 +53,7 @@ export class GroupsParticipantsService {
             throw new ConflictException(`Participante ${participant.name} já está em um grupo do tipo ${GroupTypePtBr[group.type]}`);
         }
 
-        if (group.participantsGroup.length + 1 >= group.configMax) {
+        if (group.participantsGroup.length >= group.configMax) {
             this.logger.warn(`Grupo ${group.name} já atingiu o limite de participantes`);
             throw new ConflictException(`Grupo ${group.name} já atingiu o limite de participantes`);
         }
