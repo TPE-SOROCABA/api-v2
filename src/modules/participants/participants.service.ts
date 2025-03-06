@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { UpdateParticipantDto } from './dto/update-participant.dto';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
@@ -33,12 +33,17 @@ export class ParticipantsService {
     }
   }
 
-  findAll(params: FindAllParticipantParams) {
+  async findAll(params: FindAllParticipantParams) {
     this.logger.log('Buscando todos os participantes');
-    return this.prisma.participants.findMany({
+    const participants = await this.prisma.participants.findMany({
       include: {
         petitions: true,
         congregation: true,
+        participantsGroup: {
+          include: {
+            group: true
+          }
+        },
       },
       where: {
         name: {
@@ -54,6 +59,14 @@ export class ParticipantsService {
         profile: params.profile || undefined
       }
     });
+
+    return participants.map(participant => {
+      const { participantsGroup, ...rest } = participant;
+      return {
+        ...rest,
+        groups: participantsGroup.map(participantGroup => participantGroup.group)
+      }
+    })
   }
 
   async findOne(id: string) {
@@ -63,6 +76,11 @@ export class ParticipantsService {
       include: {
         petitions: true,
         congregation: true,
+        participantsGroup: {
+          include: {
+            group: true
+          }
+        },
       },
     });
 
@@ -70,8 +88,11 @@ export class ParticipantsService {
       throw new NotFoundException('Participante não encontrado');
     }
 
-
-    return participant;
+    const { participantsGroup, ...rest } = participant;
+    return {
+      ...rest,
+      groups: participantsGroup.map(participantGroup => participantGroup.group)
+    }
   }
 
   async findByEmail(email: string) {
