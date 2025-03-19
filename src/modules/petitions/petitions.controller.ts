@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -13,6 +13,11 @@ export class PetitionsController {
     @Get()
     async getAllPetitions(@Query() params: FindAllParams) {
         return this.petitionService.getAllPetitions(params);
+    }
+
+    @Get(':id')
+    async getPetitionById(@Param('id') id: string) {
+        return this.petitionService.getPetitionById(id);
     }
 
     @Patch('waiting-information/:id')

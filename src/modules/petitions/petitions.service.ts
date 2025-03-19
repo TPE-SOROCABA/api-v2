@@ -43,6 +43,19 @@ export class PetitionsService {
         return petitions;
     }
 
+    async getPetitionById(id: string): Promise<Petitions> {
+        const petition = await this.prismaService.petitions.findUnique({
+            where: { id },
+            include: {
+                participants: true
+            },
+        });
+        if (!petition) {
+            throw new NotFoundException('Petição não encontrada');
+        }
+        return petition;
+    }
+
     async changeStatusToWaitingInformation(id: string): Promise<Petitions> {
         const petition = await this.prismaService.petitions.update({
             where: { id },
