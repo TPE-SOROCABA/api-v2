@@ -13,9 +13,10 @@ import { PrismaConnectionMiddleware } from './infra/prisma/prisma-connection.mid
 import { ConvertPdfToImagesUseCase } from './modules/petitions/convert-pdf-to-images.usecase';
 import { OcrService } from './infra/ocr.service';
 import { GroupsModule } from './modules/groups/groups.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule],
+  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule],
   controllers: [AppController],
   providers: [
     {
