@@ -78,6 +78,7 @@ export class DashboardService {
                     }
                 },
             }),
+
         });
         const participantsIncidents = incidents.reduce((acc, incident) => {
             const participantId = incident.participantId
@@ -104,8 +105,8 @@ export class DashboardService {
                 const groupVacancies = group.configMax - groupParticipants.length;
                 return acc + (groupVacancies > 0 ? groupVacancies : 0);
             }, 0),
-            // vamos fazer reduce para constar quantos participantes(participantId) tem mais incidencia e retornar na ordem decrescente os nomes
-            incidents: Object.values(participantsIncidents).sort((a, b) => b.count - a.count)
+            // pegars os 10 primeiros incidentes
+            incidents: Object.values(participantsIncidents).sort((a, b) => b.count - a.count).slice(0, 10)
         }
     }
 }
