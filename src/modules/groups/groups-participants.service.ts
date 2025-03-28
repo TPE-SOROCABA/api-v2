@@ -33,7 +33,10 @@ export class GroupsParticipantsService {
         const { participantsGroup, ...groupData } = group;
         return {
             ...groupData,
-            participants: participantsGroup.map(participantGroup => (participantGroup.participant))
+            participants: participantsGroup.map(participantGroup => ({
+                ...participantGroup.participant,
+                profile: participantGroup.profile,
+            }))
         }
     }
 
