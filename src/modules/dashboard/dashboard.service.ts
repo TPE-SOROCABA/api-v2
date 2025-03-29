@@ -119,7 +119,7 @@ export class DashboardService {
             waitingList: petitions.filter((p) => p.status === PetitionStatus.WAITING).length,
             groups: groups.length,
             points: points.length,
-            averagePresence,
+            averagePresence: Number(averagePresence.toFixed()),
             participants: {
                 [ParticipantSex.MALE]: participants.filter(p => p.sex === ParticipantSex.MALE).length,
                 [ParticipantSex.FEMALE]: participants.filter(p => p.sex === ParticipantSex.FEMALE).length
