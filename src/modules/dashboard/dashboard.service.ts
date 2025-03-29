@@ -49,6 +49,7 @@ export class DashboardService {
                 include: {
                     participant: {
                         select: {
+                            profilePhoto: true,
                             name: true,
                         }
                     },
@@ -72,13 +73,14 @@ export class DashboardService {
             const participantId = incident.participantId
             if (!acc[participantId]) {
                 acc[participantId] = {
+                    profilePhoto: incident.participant.profilePhoto,
                     name: incident.participant.name,
                     count: 0,
                 };
             }
             acc[participantId].count++;
             return acc;
-        }, {} as Record<string, { name: string; count: number }>);
+        }, {} as Record<string, { profilePhoto: string, name: string; count: number }>);
 
         const petitions = await this.prismaService.$queryRaw<
             Petitions[]
