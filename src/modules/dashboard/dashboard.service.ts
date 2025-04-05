@@ -98,9 +98,11 @@ export class DashboardService {
 
     const { averagePresence } = await this.getPresenceByGroup({ groupId: params.groupId });
 
+    const participantsInGroup = await this.getParticipantsInGroup(params.groupId);
+
     return {
       waitingList: petitions.filter((p) => p.status === PetitionStatus.WAITING).length,
-      groups: groups.length,
+      groups: params?.groupId ? participantsInGroup : groups.length,
       points: points.length,
       averagePresence: Number(averagePresence.toFixed()),
       participants: {
@@ -143,5 +145,16 @@ export class DashboardService {
 
     const averagePresence = result[0]?.averagePresence ?? 0;
     return { averagePresence };
+  }
+
+  async getParticipantsInGroup(groupId: string) {
+    if (!groupId) {
+      return 0;
+    }
+    return this.prismaService.participantsGroups.count({
+      where: {
+        groupId,
+      },
+    });
   }
 }
