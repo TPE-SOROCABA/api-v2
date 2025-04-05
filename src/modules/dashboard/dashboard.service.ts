@@ -134,7 +134,7 @@ export class DashboardService {
           LEFT JOIN assignments a ON a.designations_id = d.id
           LEFT JOIN assignments_participants ap ON ap.assignment_id = a.id
           LEFT JOIN incident_histories ih ON ih.designation_id = d.id
-          WHERE d.group_id = $1
+          WHERE ($1::text IS NULL OR d.group_id = $1::text)
           GROUP BY d.id
         ) AS sub;
       `,
