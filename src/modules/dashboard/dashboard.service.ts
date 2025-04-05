@@ -96,28 +96,7 @@ export class DashboardService {
                 ) AND (elem->>'weekDay')::int = ANY(${groups.map((g) => WEEKDAY[g.configWeekday])}::int[])
             )`;
 
-    const designation = await this.prismaService.designations.findMany({
-      where: {
-        groupId: {
-          in: groups.map((g) => g.id),
-        },
-      },
-      include: {
-        group: true,
-        incidentHistories: {
-          include: {
-            participant: true,
-          },
-        },
-      },
-    });
-
-    const totalDesignations = designation.length;
-    const totalIncidents = designation.reduce((acc, curr) => {
-      const groupIncidents = curr.incidentHistories.length;
-      return acc + groupIncidents;
-    }, 0);
-    const averagePresence = totalDesignations > 0 ? (totalIncidents / totalDesignations) * 100 : 0;
+    const { averagePresence } = await this.getPresenceByGroup({ groupId: params.groupId });
 
     return {
       waitingList: petitions.filter((p) => p.status === PetitionStatus.WAITING).length,
@@ -137,5 +116,32 @@ export class DashboardService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
     };
+  }
+
+  async getPresenceByGroup({ groupId }: { groupId: string }) {
+    const result = await this.prismaService.$queryRawUnsafe<{ averagePresence: number }[]>(
+      `
+        SELECT 
+          ROUND(AVG(presence), 2) AS "averagePresence"
+        FROM (
+          SELECT 
+            d.id AS designation_id,
+            CASE 
+              WHEN (COUNT(DISTINCT ap.id) + COUNT(DISTINCT ih.id)) = 0 THEN 0
+              ELSE (COUNT(DISTINCT ap.id) * 100.0) / (COUNT(DISTINCT ap.id) + COUNT(DISTINCT ih.id))
+            END AS presence
+          FROM designations d
+          LEFT JOIN assignments a ON a.designations_id = d.id
+          LEFT JOIN assignments_participants ap ON ap.assignment_id = a.id
+          LEFT JOIN incident_histories ih ON ih.designation_id = d.id
+          WHERE d.group_id = $1
+          GROUP BY d.id
+        ) AS sub;
+      `,
+      groupId,
+    );
+
+    const averagePresence = result[0]?.averagePresence ?? 0;
+    return { averagePresence };
   }
 }
