@@ -30,7 +30,7 @@ export class DashboardService {
         ...(params.groupId && { where: { id: params.groupId } }),
       }),
       this.prismaService.pointPublicationCart.findMany({
-        ...(params.groupId && { where: { id: params.groupId } }),
+        ...(params.groupId && { where: { groupId: params.groupId } }),
         select: {
           pointId: true,
         },
