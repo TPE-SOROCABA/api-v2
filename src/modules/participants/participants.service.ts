@@ -112,6 +112,23 @@ export class ParticipantsService {
     return participant;
   }
 
+  async findByPhone(phone: string) {
+    this.logger.log(`Buscando participante pelo telefone: ${phone}`);
+    const participant = await this.prisma.participants.findFirst({
+      where: { phone },
+      include: {
+        petitions: true,
+        congregation: true,
+      }
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado');
+    }
+
+    return participant;
+  }
+
   async update(id: string, updateParticipantDto: UpdateParticipantDto) {
     this.logger.log(`Atualizando participante: ${id}`);
     this.prisma.participants.findUnique({ where: { id } });

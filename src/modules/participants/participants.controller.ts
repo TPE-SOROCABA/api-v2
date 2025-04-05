@@ -37,6 +37,11 @@ export class ParticipantsController {
     return this.participantsService.findByEmail(email);
   }
 
+  @Get('phones/:phone')
+  findByPhone(@Param('phone') phone: string) {
+    return this.participantsService.findByPhone(phone);
+  }
+
   // Rota experimental, para ambiente de desenvolvimento
   @Patch('toggle-admin/:userId')
   toggleAdminAnalyst(@Param('userId') userId: string) {
