@@ -17,10 +17,10 @@ const WEEKDAY = {
 @Injectable()
 export class DashboardService {
   private readonly logger = new TransactionLogger(DashboardService.name);
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService) { }
 
   async getAllDashboard(params: FindAllParams) {
-    const [groups, points, participants, incidents] = await Promise.all([
+    const [groups, points, participantsGroups, incidents] = await Promise.all([
       this.prismaService.groups.findMany({
         select: {
           id: true,
@@ -36,11 +36,10 @@ export class DashboardService {
         },
         distinct: ['pointId'],
       }),
-      this.prismaService.participants.findMany({
+      this.prismaService.participantsGroups.findMany({
+        ...(params.groupId && { where: { groupId: params.groupId } }),
         include: {
-          participantsGroup: {
-            ...(params.groupId && { where: { id: params.groupId } }),
-          },
+          participant: true,
         },
       }),
       this.prismaService.incidentHistories.findMany({
@@ -66,12 +65,13 @@ export class DashboardService {
         }),
       }),
     ]);
+    const participants = participantsGroups.map((pg) => pg.participant);
     const participantsIncidents = incidents.reduce(
       (acc, incident) => {
         const participantId = incident.participantId;
         if (!acc[participantId]) {
           acc[participantId] = {
-            profilePhoto: incident.participant.profilePhoto,
+            profilePhoto: "",
             name: incident.participant.name,
             count: 0,
           };
@@ -105,12 +105,32 @@ export class DashboardService {
       groups: params?.groupId ? participantsInGroup : groups.length,
       points: points.length,
       averagePresence: Number(averagePresence.toFixed()),
+      trainings: {
+        valid: participants.filter((p) => {
+          const trainingDate = p.lastTrainingDate;
+          if (!trainingDate) return false;
+          const trainingDateObj = new Date(trainingDate);
+          const currentDate = new Date();
+          const diffTime = Math.abs(currentDate.getTime() - trainingDateObj.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays <= 365;
+        }).length,
+        expired: participants.filter((p) => {
+          const trainingDate = p.lastTrainingDate;
+          if (!trainingDate) return true;
+          const trainingDateObj = new Date(trainingDate);
+          const currentDate = new Date();
+          const diffTime = Math.abs(currentDate.getTime() - trainingDateObj.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays > 365;
+        }).length,
+      },
       participants: {
         [ParticipantSex.MALE]: participants.filter((p) => p.sex === ParticipantSex.MALE).length,
         [ParticipantSex.FEMALE]: participants.filter((p) => p.sex === ParticipantSex.FEMALE).length,
       },
       vacancies: groups.reduce((acc, group) => {
-        const groupParticipants = participants.filter((p) => p.participantsGroup.some((pg) => pg.groupId === group.id));
+        const groupParticipants = participantsGroups.filter((pg) => pg.groupId === group.id);
         const groupVacancies = group.configMax - groupParticipants.length;
         return acc + (groupVacancies > 0 ? groupVacancies : 0);
       }, 0),
