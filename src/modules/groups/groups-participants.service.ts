@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { GroupType } from '@prisma/client';
+import { GroupType, PetitionStatus } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { UpdateGroupParticipanteProfileDto } from './dto/update-group-participante-profile.dto';
 
@@ -68,6 +68,13 @@ export class GroupsParticipantsService {
             }
         });
 
+        await this.prisma.petitions.update({
+            where: { id: participant.id },
+            data: {
+                status: PetitionStatus.ACTIVE,
+            }
+        });
+
         this.logger.log(`Participante ${participant.name} atribuído ao grupo ${group.name}`);
         return {
             message: `Participante ${participant.name} atribuido ao grupo ${group.name}`
@@ -90,6 +97,20 @@ export class GroupsParticipantsService {
                 participantId: participant.id
             }
         });
+
+        const participantGroups = await this.prisma.participantsGroups.findMany({
+            where: {
+                participantId: participant.id
+            }
+        });
+        if (participantGroups.length === 0) {
+            await this.prisma.petitions.update({
+                where: { id: participant.id },
+                data: {
+                    status: PetitionStatus.WAITING,
+                }
+            });
+        }
 
         this.logger.log(`Participante ${participant.name} removido do grupo ${group.name}`);
         return {
