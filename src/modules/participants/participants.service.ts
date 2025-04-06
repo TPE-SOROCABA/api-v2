@@ -18,9 +18,12 @@ export class ParticipantsService {
     const participant = Participant.build(createParticipantDto);
     this.logger.log(`Criando participante `, createParticipantDto.name);
     try {
+
       return await this.prisma.$transaction([
-        this.prisma.participants.create({
-          data: createParticipantDto,
+        this.prisma.participants.upsert({
+          where: { phone: participant.phone },
+          update: createParticipantDto,
+          create: createParticipantDto,
         }),
         this.prisma.petitions.update({
           where: { id: createParticipantDto.petitionId },
