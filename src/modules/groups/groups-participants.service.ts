@@ -15,7 +15,7 @@ export class GroupsParticipantsService {
     constructor(private readonly prisma: PrismaService) { }
 
     async findAllParticipants(id: string) {
-        this.logger.debug(`Procurando todos os participantes do grupo com ID ${id}`);
+        this.logger.debug(`Iniciando busca de todos os participantes do grupo com ID ${id}`);
         const group = await this.prisma.groups.findUnique({
             where: { id },
             include: {
@@ -26,31 +26,38 @@ export class GroupsParticipantsService {
                 }
             }
         });
+        this.logger.debug(`Consulta ao banco de dados para grupo com ID ${id} concluída`);
         if (!group) {
             this.logger.warn(`Grupo com ID ${id} não encontrado`);
             throw new NotFoundException(`Group with ID ${id} not found`);
         }
+        this.logger.debug(`Grupo com ID ${id} encontrado: ${JSON.stringify(group)}`);
         const { participantsGroup, ...groupData } = group;
+        const participants = participantsGroup.map(participantGroup => ({
+            ...participantGroup.participant,
+            profile: participantGroup.profile,
+        }));
+        this.logger.debug(`Participantes processados: ${JSON.stringify(participants)}`);
         return {
             ...groupData,
-            participants: participantsGroup.map(participantGroup => ({
-                ...participantGroup.participant,
-                profile: participantGroup.profile,
-            }))
-        }
+            participants
+        };
     }
 
     async updateParticipantGroup(groupId: string, participantId: string) {
-        this.logger.debug(`Atualizando grupo ${groupId} com participante ${participantId}`);
+        this.logger.debug(`Iniciando atualização do grupo ${groupId} com participante ${participantId}`);
         const { group, participant } = await this.getGroupAndParticipant(groupId, participantId);
+        this.logger.debug(`Grupo e participante carregados: ${JSON.stringify(group)}, ${JSON.stringify(participant)}`);
 
         const isParticipantInGroup = group.participantsGroup.some(participantGroup => participantGroup.participantId === participant.id);
+        this.logger.debug(`Verificação se participante já está no grupo: ${isParticipantInGroup}`);
         if (isParticipantInGroup) {
             this.logger.warn(`Participante ${participant.name} já está no grupo ${group.name}`);
             throw new ConflictException(`Participante ${participant.name} já está no grupo ${group.name}`);
         }
 
         const isParticipantInAnotherGroupType = participant.participantsGroup.some(participantGroup => participantGroup.group.type === group.type);
+        this.logger.debug(`Verificação se participante já está em outro grupo do mesmo tipo: ${isParticipantInAnotherGroupType}`);
         if (isParticipantInAnotherGroupType) {
             this.logger.warn(`Participante ${participant.name} já está em um grupo do tipo ${GroupTypePtBr[group.type]}`);
             throw new ConflictException(`Participante ${participant.name} já está em um grupo do tipo ${GroupTypePtBr[group.type]}`);
@@ -61,6 +68,7 @@ export class GroupsParticipantsService {
             throw new ConflictException(`Grupo ${group.name} já atingiu o limite de participantes`);
         }
 
+        this.logger.debug(`Criando relação entre grupo e participante no banco de dados`);
         await this.prisma.participantsGroups.create({
             data: {
                 groupId: group.id,
@@ -68,8 +76,9 @@ export class GroupsParticipantsService {
             }
         });
 
+        this.logger.debug(`Atualizando status da petição do participante para ACTIVE`);
         await this.prisma.petitions.update({
-            where: { id: participant.id },
+            where: { id: participant.petitionId },
             data: {
                 status: PetitionStatus.ACTIVE,
             }
@@ -82,15 +91,18 @@ export class GroupsParticipantsService {
     }
 
     async removeParticipantGroup(groupId: string, participantId: string) {
-        this.logger.debug(`Removendo participante ${participantId} do grupo ${groupId}`);
+        this.logger.debug(`Iniciando remoção do participante ${participantId} do grupo ${groupId}`);
         const { group, participant } = await this.getGroupAndParticipant(groupId, participantId);
+        this.logger.debug(`Grupo e participante carregados: ${JSON.stringify(group)}, ${JSON.stringify(participant)}`);
 
         const isParticipantInGroup = group.participantsGroup.some(participantGroup => participantGroup.participantId === participant.id);
+        this.logger.debug(`Verificação se participante está no grupo: ${isParticipantInGroup}`);
         if (!isParticipantInGroup) {
             this.logger.warn(`Participante ${participant.name} não está no grupo ${group.name}`);
             throw new NotFoundException(`Participante ${participant.name} não está no grupo ${group.name}`);
         }
 
+        this.logger.debug(`Removendo relação entre grupo e participante no banco de dados`);
         await this.prisma.participantsGroups.deleteMany({
             where: {
                 groupId: group.id,
@@ -103,9 +115,11 @@ export class GroupsParticipantsService {
                 participantId: participant.id
             }
         });
+        this.logger.debug(`Verificando se participante ainda está em outros grupos: ${participantGroups.length}`);
         if (participantGroups.length === 0) {
+            this.logger.debug(`Atualizando status da petição do participante para WAITING`);
             await this.prisma.petitions.update({
-                where: { id: participant.id },
+                where: { id: participant.petitionId },
                 data: {
                     status: PetitionStatus.WAITING,
                 }
@@ -119,7 +133,7 @@ export class GroupsParticipantsService {
     }
 
     async updateParticipantGroupProfile(groupId: string, participantId: string, { profile }: UpdateGroupParticipanteProfileDto) {
-        this.logger.debug(`Atualizando perfil do participante ${participantId} no grupo ${groupId}`);
+        this.logger.debug(`Iniciando atualização do perfil do participante ${participantId} no grupo ${groupId}`);
         const groupParticipant = await this.prisma.participantsGroups.findFirst({
             where: {
                 participantId,
@@ -129,13 +143,15 @@ export class GroupsParticipantsService {
                 participant: true,
                 group: true
             }
-        })
+        });
+        this.logger.debug(`Relação entre grupo e participante carregada: ${JSON.stringify(groupParticipant)}`);
 
         if (!groupParticipant) {
             this.logger.warn(`Participante não está no grupo`);
             throw new NotFoundException(`Participante não está no grupo`);
         }
 
+        this.logger.debug(`Atualizando perfil do participante no banco de dados`);
         await this.prisma.participantsGroups.update({
             where: {
                 id: groupParticipant.id
@@ -155,8 +171,9 @@ export class GroupsParticipantsService {
         this.logger.debug(`Buscando grupo ${groupId} e participante ${participantId}`);
         const [group, participant] = await Promise.all([
             this.prisma.groups.findUnique({ where: { id: groupId }, include: { participantsGroup: true } }),
-            this.prisma.participants.findUnique({ where: { id: participantId }, include: { participantsGroup: { include: { group: true } } } })
+            this.prisma.participants.findUnique({ where: { id: participantId }, include: { participantsGroup: { include: { group: true } }, petitions: true } })
         ]);
+        this.logger.debug(`Dados carregados do banco de dados: grupo=${JSON.stringify(group)}, participante=${JSON.stringify(participant)}`);
 
         if (!group) {
             this.logger.warn(`Grupo com ID ${groupId} não encontrado`);
