@@ -100,14 +100,6 @@ export class CreateParticipantDto {
     @IsOptional()
     @IsDate({ message: 'Campo data de ultimo treinamento deve ser uma data válida' })
     @Type(() => Date)
-    @Transform(({ value }) => {
-        const date = new Date(value);
-        const today = new Date();
-        if (date > today) {
-            throw new Error('Campo data de ultimo treinamento não pode ser uma data futura');
-        }
-        return date;
-    })
     lastTrainingDate: Date;
 
     @IsOptional()
