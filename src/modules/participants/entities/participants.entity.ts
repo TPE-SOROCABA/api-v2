@@ -21,6 +21,7 @@ interface CreateParticipant {
     spouseParticipant?: boolean;
     availability?: any[];
     profilePhoto?: string;
+    lastTrainingDate?: Date;
 }
 
 export class Participant {
@@ -50,6 +51,7 @@ export class Participant {
         public spouseParticipant?: boolean,
         public availability?: any[],
         public profilePhoto?: string,
+        public lastTrainingDate?: Date
     ) {
         this.logger.log(`Criando participante `, name);
     }
@@ -84,7 +86,8 @@ export class Participant {
             hasMinorChild,
             spouseParticipant,
             availability,
-            profilePhoto
+            profilePhoto,
+            lastTrainingDate
         } = participant;
         return new Participant(
             name,
@@ -105,7 +108,8 @@ export class Participant {
             hasMinorChild ?? null,
             spouseParticipant ?? null,
             availability ?? null,
-            profilePhoto ?? null
+            profilePhoto ?? null,
+            lastTrainingDate ?? null
         );
     }
 }

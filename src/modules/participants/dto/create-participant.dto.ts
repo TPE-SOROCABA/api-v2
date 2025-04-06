@@ -98,6 +98,19 @@ export class CreateParticipantDto {
     baptismDate: Date;
 
     @IsOptional()
+    @IsDate({ message: 'Campo data de ultimo treinamento deve ser uma data válida' })
+    @Type(() => Date)
+    @Transform(({ value }) => {
+        const date = new Date(value);
+        const today = new Date();
+        if (date > today) {
+            throw new Error('Campo data de ultimo treinamento não pode ser uma data futura');
+        }
+        return date;
+    })
+    lastTrainingDate: Date;
+
+    @IsOptional()
     @IsArray({ message: 'Valor inválido para privilégios' })
     @IsString({ each: true, message: 'Os itens de privilégios devem ser textos' })
     @Transform(({ value }) => value.map((v: string) => v?.toUpperCase()))

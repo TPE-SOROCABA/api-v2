@@ -33,6 +33,7 @@ model Participants {
   zipCode           String?             @map("zip_code")
   cpf               String?
   civilStatus       CivilStatus?        @map("civil_status")
+  lastTrainingDate  DateTime?           @map("last_training_date")
 
   congregation            Congregations?            @relation(fields: [congregationId], references: [id])
   assignmentsParticipants AssignmentsParticipants[]
