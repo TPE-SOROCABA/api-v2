@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as FS from 'fs';
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { S3Service } from "src/infra/s3.service";
 import { PrismaService } from "src/infra/prisma/prisma.service";
@@ -8,6 +8,7 @@ import { Petitions, PetitionStatus } from "@prisma/client";
 import { FindAllParams } from "./dto/find-all.dto";
 import { ImageParameters, OcrService } from 'src/infra/ocr.service';
 import { createHash } from 'crypto';
+import { promises as fs } from 'fs';
 
 @Injectable()
 export class PetitionsService {
@@ -140,18 +141,22 @@ export class PetitionsService {
 
     async checkFileHash(file: Express.Multer.File): Promise<string> {
         this.logger.log(`Iniciando verificação de hash do arquivo: ${file.originalname}`);
-        const hash = this.generateHash(file.buffer);
-        this.logger.log(`Hash gerado`);
+        const fileBuffer = await fs.readFile(file.path);
+        const hash = this.generateHash(fileBuffer);
+        this.logger.log(`Hash gerado para o arquivo: ${hash}`);
         const petition = await this.prismaService.petitions.findFirst({
             where: {
                 hash: hash
             }
         });
         if (petition) {
-            this.logger.log(`Petição já existe com o hash`);
-            throw new ConflictException('Petição já existe com o mesmo hash');
+            this.logger.log(`Petição já existe com o hash: ${hash}`);
+            this.logger.log(`Excluindo arquivo PDF original: ${file.path}`);
+            await fs.unlink(file.path);
+            this.logger.log(`Arquivo PDF original excluído com sucesso.`);
+            throw new ConflictException(`Petição já existe nome: ${petition.name}`);
         } else {
-            this.logger.log(`Petição não encontrada com o hash`);
+            this.logger.log(`Petição não encontrada com o hash: ${hash}`);
         }
         return hash;
     }
@@ -159,7 +164,7 @@ export class PetitionsService {
     private async uploadS3(imagesPath: string[], file: Express.Multer.File) {
         const uploadPromises = imagesPath.map(async (imagePath) => {
             this.logger.log(`Lendo imagem gerada: ${imagePath}`);
-            const image = fs.readFileSync(imagePath);
+            const image = FS.readFileSync(imagePath);
 
             this.logger.log(`Fazendo upload da imagem para o bucket S3...`);
             const imageUrl = await this.s3Service.uploadFile({
