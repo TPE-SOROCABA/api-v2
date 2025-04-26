@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { S3Service } from "src/infra/s3.service";
 import { PrismaService } from "src/infra/prisma/prisma.service";
 import { TransactionLogger } from "src/infra/transaction.logger";
@@ -7,6 +7,7 @@ import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
 import { Petitions, PetitionStatus } from "@prisma/client";
 import { FindAllParams } from "./dto/find-all.dto";
 import { ImageParameters, OcrService } from 'src/infra/ocr.service';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class PetitionsService {
@@ -68,6 +69,8 @@ export class PetitionsService {
     }
 
     async uploadFile(file: Express.Multer.File): Promise<Petitions> {
+        const hash = await this.checkFileHash(file);
+        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
         const imagesPath = await this.convertPdfAndImage(file);
         const [urls, name] = await Promise.all([
             this.uploadS3(imagesPath, file),
@@ -98,6 +101,7 @@ export class PetitionsService {
                 protocol: protocol,
                 publicUrl: urls[0],
                 privateUrl: urls[1],
+                hash: hash,
             }
         });
         this.logger.log(`Registro criado com sucesso. ID: ${petition.id}`);
@@ -106,6 +110,8 @@ export class PetitionsService {
     }
 
     async updateUploadFile(id: string, file: Express.Multer.File) {
+        const hash = await this.checkFileHash(file);
+        this.logger.log(`Iniciando atualização do arquivo: ${file.originalname}`);
         const petition = await this.prismaService.petitions.findUnique({
             where: { id }
         });
@@ -124,11 +130,30 @@ export class PetitionsService {
             where: { id },
             data: {
                 publicUrl: urls[0],
-                privateUrl: urls[1]
+                privateUrl: urls[1],
+                hash: hash,
             }
         });
 
         return updatedPetition;
+    }
+
+    async checkFileHash(file: Express.Multer.File): Promise<string> {
+        this.logger.log(`Iniciando verificação de hash do arquivo: ${file.originalname}`);
+        const hash = this.generateHash(file.buffer);
+        this.logger.log(`Hash gerado`);
+        const petition = await this.prismaService.petitions.findFirst({
+            where: {
+                hash: hash
+            }
+        });
+        if (petition) {
+            this.logger.log(`Petição já existe com o hash`);
+            throw new ConflictException('Petição já existe com o mesmo hash');
+        } else {
+            this.logger.log(`Petição não encontrada com o hash`);
+        }
+        return hash;
     }
 
     private async uploadS3(imagesPath: string[], file: Express.Multer.File) {
@@ -181,5 +206,9 @@ export class PetitionsService {
         const protocol = `${randomPart}${randomPart2}${randomPart3}`;
         this.logger.debug(`Protocolo gerado internamente: ${protocol}`);
         return protocol;
+    }
+
+    private generateHash(buffer: Buffer) {
+        return createHash('sha256').update(buffer).digest('hex');
     }
 }

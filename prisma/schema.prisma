@@ -241,6 +241,7 @@ model Petitions {
   privateUrl String         @map("private_url")
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
+  hash       String         @unique
 
   participants Participants[]
 

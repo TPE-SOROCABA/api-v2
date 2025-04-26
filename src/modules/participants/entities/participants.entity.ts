@@ -57,7 +57,7 @@ export class Participant {
     }
 
     get registrationStatus(): PetitionStatus {
-        const requiredFields = ['name', 'sex', 'phone', 'email', 'petitionId', 'birthDate', 'congregationId', 'baptismDate', 'attributions'];
+        const requiredFields = ['name', 'sex', 'phone', 'email', 'petitionId', 'birthDate', 'congregationId', 'baptismDate', 'attributions', 'availability'];
         const hasAllRequiredFields = requiredFields.every(field => {
             this.logger.debug(`Verificando campo ${field} com valor ${this[field]}`);
             return this[field];
