@@ -5,14 +5,15 @@ import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
 import { Participant } from './entities/participants.entity';
 import { ParticipantProfile, PetitionStatus } from '@prisma/client';
-import { S3Service } from 'src/infra/s3.service';
 import * as fs from 'fs';
 import { FindAllParticipantParams } from './dto/find-all-participants.params';
+import { FirebaseService } from 'src/infra/firebase.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ParticipantsService {
   logger = new TransactionLogger(ParticipantsService.name);
-  constructor(private prisma: PrismaService, private readonly s3Service: S3Service) { }
+  constructor(private prisma: PrismaService, private readonly firebaseService: FirebaseService) { }
 
   async create(createParticipantDto: CreateParticipantDto) {
     const participant = Participant.build(createParticipantDto);
@@ -190,10 +191,15 @@ export class ParticipantsService {
     const participant = await this.prisma.participants.findUnique({
       where: { id },
     });
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado');
+    }
     if (participant.profilePhoto) {
       try {
         const key = participant.profilePhoto.split('/').pop();
-        await this.s3Service.deleteFile(key, `${process.env.NODE_ENV}-petitions`);
+        this.logger.log(`Excluindo foto antiga: ${key}`);
+        await this.firebaseService.deleteFileByUrl(participant.profilePhoto).catch(() => { });
+        this.logger.log(`Excluindo foto antiga: ${key}`);
         this.logger.log(`Foto antiga excluída: ${key}`);
       } catch (error) {
         this.logger.error(`Erro ao excluir a foto antiga: ${error}`);
@@ -203,15 +209,17 @@ export class ParticipantsService {
     this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
     const image = fs.readFileSync(file.path);
 
-    this.logger.log(`Fazendo upload da imagem para o bucket S3...`);
-    const imageUrl = await this.s3Service.uploadFile({
+    const uuid = uuidv4();
+    this.logger.log(`Fazendo upload da imagem para o Firebase...`);
+    const imageUrl = await this.firebaseService.uploadFile({
       ...file,
       buffer: image,
-      mimetype: file.mimetype,
+      mimetype: 'image/png',
       size: image.length,
-      originalname: file.originalname.replace('.pdf', '.png').replace(/ /g, '_'),
-    }, `${process.env.NODE_ENV}-petitions`); // depois mudar para participants-photo
+      originalname: `${uuid}.png`
+    }, `participants/${uuid}.png`);
     this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
+
     fs.unlinkSync(file.path);
     this.logger.log(`Imagem temporária excluída: ${file.path}`);
     this.logger.log(`Atualizando participante: ${id} com a URL da imagem`);

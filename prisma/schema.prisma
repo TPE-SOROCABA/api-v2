@@ -259,6 +259,11 @@ model Congregations {
   @@map("congregations")
 }
 
+model firebase {
+  id     Int  @id @unique @default(autoincrement())
+  config Json
+}
+
 enum ParticipantProfile {
   COORDINATOR
   ASSISTANT_COORDINATOR

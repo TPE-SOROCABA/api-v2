@@ -1,6 +1,5 @@
 import * as FS from 'fs';
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { S3Service } from "src/infra/s3.service";
 import { PrismaService } from "src/infra/prisma/prisma.service";
 import { TransactionLogger } from "src/infra/transaction.logger";
 import { ConvertPdfToImagesUseCase } from "./convert-pdf-to-images.usecase";
@@ -9,16 +8,18 @@ import { FindAllParams } from "./dto/find-all.dto";
 import { ImageParameters, OcrService } from 'src/infra/ocr.service';
 import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
+import { FirebaseService } from 'src/infra/firebase.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class PetitionsService {
     private readonly logger = new TransactionLogger(PetitionsService.name);
 
     constructor(
-        private readonly s3Service: S3Service,
         private readonly convertPdfToImagesUseCase: ConvertPdfToImagesUseCase,
         private readonly prismaService: PrismaService,
-        private readonly ocrService: OcrService
+        private readonly ocrService: OcrService,
+        private readonly firebaseService: FirebaseService,
     ) { }
 
     async getAllPetitions(params: FindAllParams): Promise<Petitions[]> {
@@ -122,8 +123,9 @@ export class PetitionsService {
 
         const keyOne = petition.publicUrl.split('/').pop();
         const keyTwo = petition.privateUrl.split('/').pop();
-        await this.s3Service.deleteFile(keyOne, `${process.env.NODE_ENV}-petitions`);
-        await this.s3Service.deleteFile(keyTwo, `${process.env.NODE_ENV}-petitions`);
+        this.logger.log(`Deletando arquivos antigos: ${keyOne} e ${keyTwo}`);
+        await this.firebaseService.deleteFileByUrl(petition.publicUrl).catch(() => null);
+        await this.firebaseService.deleteFileByUrl(petition.privateUrl).catch(() => null);
         const imagesPath = await this.convertPdfAndImage(file);
         const urls = await this.uploadS3(imagesPath, file);
 
@@ -165,15 +167,16 @@ export class PetitionsService {
         const uploadPromises = imagesPath.map(async (imagePath) => {
             this.logger.log(`Lendo imagem gerada: ${imagePath}`);
             const image = FS.readFileSync(imagePath);
-
-            this.logger.log(`Fazendo upload da imagem para o bucket S3...`);
-            const imageUrl = await this.s3Service.uploadFile({
+            const uuid = uuidv4();
+            this.logger.log(`Fazendo upload da imagem para o Firebase...`);
+            const imageUrl = await this.firebaseService.uploadFile({
                 ...file,
                 buffer: image,
                 mimetype: 'image/png',
                 size: image.length,
-                originalname: file.originalname.replace('.pdf', '.png').replace(/ /g, '_'),
-            }, `${process.env.NODE_ENV}-petitions`);
+                originalname: `${uuid}.png`
+            }, `petitions/${uuid}.png`);
+
             this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
             return imageUrl;
         });
