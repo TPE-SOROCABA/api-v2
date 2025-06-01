@@ -76,13 +76,15 @@ export class GroupsParticipantsService {
             }
         });
 
-        this.logger.debug(`Atualizando status da petição do participante para ACTIVE`);
-        await this.prisma.petitions.update({
-            where: { id: participant.petitionId },
-            data: {
-                status: PetitionStatus.ACTIVE,
-            }
-        });
+        if (participant['petitionId']) {
+            this.logger.debug(`Atualizando status da petição do participante para ACTIVE`);
+            await this.prisma.petitions.update({
+                where: { id: participant.petitionId },
+                data: {
+                    status: PetitionStatus.ACTIVE,
+                }
+            });
+        }
 
         this.logger.log(`Participante ${participant.name} atribuído ao grupo ${group.name}`);
         return {
