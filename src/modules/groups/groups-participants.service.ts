@@ -1,5 +1,5 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { GroupType, PetitionStatus } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { GroupType, ParticipantSex, PetitionStatus } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { UpdateGroupParticipanteProfileDto } from './dto/update-group-participante-profile.dto';
 
@@ -116,14 +116,14 @@ export class GroupsParticipantsService {
             }
         });
         this.logger.debug(`Verificando se participante ainda está em outros grupos: ${participantGroups.length}`);
-        if (participantGroups.length === 0) {
+        if (participantGroups.length === 0 && participant['petitionId']) {
             this.logger.debug(`Atualizando status da petição do participante para WAITING`);
             await this.prisma.petitions.update({
                 where: { id: participant.petitionId },
                 data: {
                     status: PetitionStatus.WAITING,
                 }
-            });
+            })
         }
 
         this.logger.log(`Participante ${participant.name} removido do grupo ${group.name}`);
@@ -149,6 +149,11 @@ export class GroupsParticipantsService {
         if (!groupParticipant) {
             this.logger.warn(`Participante não está no grupo`);
             throw new NotFoundException(`Participante não está no grupo`);
+        }
+
+        if (groupParticipant.participant.sex !== ParticipantSex.MALE) {
+            this.logger.warn(`Participante não é do sexo masculino`);
+            throw new BadRequestException(`Participante não é do sexo masculino`);
         }
 
         this.logger.debug(`Atualizando perfil do participante no banco de dados`);
