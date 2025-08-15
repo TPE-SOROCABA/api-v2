@@ -3,7 +3,7 @@ version: '3.5'
 services:
   tpe-prod:
     image: wfelipe2011/tpe-prod:master
-    restart: unless-stopped
+    restart: on-failure
     deploy:
       replicas: 1
       resources:
