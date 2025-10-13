@@ -6,7 +6,11 @@ import { PrismaExceptionFilter } from './infra/prisma/prisma-exception.filter';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
+  // Configurar timezone para São Paulo
+  process.env.TZ = 'America/Sao_Paulo';
+  
   logger.log('Iniciando aplicação NestJS...');
+  logger.log(`Timezone configurado para: ${process.env.TZ}`);
 
   const app = await NestFactory.create(AppModule, {
     // logger: process.env.NODE_ENV === 'test' ? ['log', 'error', 'warn', 'debug', 'verbose'] : console,
