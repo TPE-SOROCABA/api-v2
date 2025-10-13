@@ -1,11 +1,13 @@
-import { ExceptionFilter, Catch, ArgumentsHost, ConflictException, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { ExceptionFilter, Catch, ArgumentsHost, ConflictException, BadRequestException, InternalServerErrorException, NotFoundException, ServiceUnavailableException, Logger } from '@nestjs/common';
+import { PrismaClientKnownRequestError, PrismaClientUnknownRequestError } from '@prisma/client/runtime/library';
 import { Response } from 'express';
 import { TranslationEnum } from 'src/enums/translation.enum';
 
-@Catch(PrismaClientKnownRequestError)
+@Catch(PrismaClientKnownRequestError, PrismaClientUnknownRequestError)
 export class PrismaExceptionFilter implements ExceptionFilter {
-    catch(exception: PrismaClientKnownRequestError, host: ArgumentsHost) {
+    private logger = new Logger(PrismaExceptionFilter.name);
+
+    catch(exception: PrismaClientKnownRequestError | PrismaClientUnknownRequestError, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<Response>();
 
@@ -13,6 +15,22 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         let messages: string[] = []; // Array to store error messages
 
         try {
+            // Verifica se é erro de conexão (comum com Neon serverless)
+            if (this.isConnectionError(exception)) {
+                this.logger.warn('Erro de conexão com Neon detectado:', exception.message);
+                status = 503;
+                messages.push('Serviço temporariamente indisponível. Tente novamente em alguns instantes.');
+                throw new ServiceUnavailableException(messages);
+            }
+
+            // Verifica se é PrismaClientKnownRequestError para acessar propriedades específicas
+            if (!(exception instanceof PrismaClientKnownRequestError)) {
+                this.logger.error('Erro desconhecido do Prisma:', exception);
+                messages.push('Erro interno do servidor.');
+                status = 500;
+                throw new InternalServerErrorException(messages);
+            }
+
             switch (exception.code) {
                 case 'P2002': // Violação de restrição única (ex: telefone duplicado)
                     const fields = exception.meta?.target;
@@ -82,5 +100,30 @@ export class PrismaExceptionFilter implements ExceptionFilter {
 
     private translateMessages(field: string): string[] {
         return TranslationEnum[field] || field;
+    }
+
+    private isConnectionError(exception: any): boolean {
+        const connectionErrors = [
+            'Connection terminated',
+            'Connection closed',
+            'Connection lost',
+            'Server has closed the connection',
+            'Connection reset by peer',
+            'ECONNRESET',
+            'ENOTFOUND',
+            'ETIMEDOUT',
+            'P1001', // Can't reach database server
+            'P1008', // Operations timed out
+            'P1017', // Server has closed the connection
+        ];
+
+        const errorMessage = exception?.message || '';
+        const errorCode = exception?.code || '';
+        
+        return connectionErrors.some(error => 
+            errorMessage.includes(error) || 
+            errorCode === error ||
+            (exception?.kind === 'Closed')
+        );
     }
 }

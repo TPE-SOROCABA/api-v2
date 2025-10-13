@@ -15,24 +15,101 @@ export class AppController {
 
   @Get('/health-check')
   async healthCheck() {
-    const [{ max_connections }] = (await this.prismaService.$queryRaw`show max_connections`) as { max_connections: string }[];
-    const [{ count: countIdle }] = (await this.prismaService
-      .$queryRaw`select count(1)  from pg_stat_activity where state = 'idle' and datname = 'tpedigital'`) as {
-        count: BigInt;
-      }[];
-    const [{ count: countActive }] = (await this.prismaService
-      .$queryRaw`select count(1)  from pg_stat_activity where state = 'active' and datname = 'tpedigital'`) as {
-        count: BigInt;
-      }[];
+    // Verifica status SEM acordar o banco
+    const dbStatus = this.prismaService.getConnectionStatus();
 
-    return {
-      message: `[${new Date().toISOString()}] - O servidor está em execução - Produção!`,
-      database_info: {
-        active: +countActive.toString(),
-        idle: +countIdle.toString(),
-        max_connections: +max_connections,
-      },
+    const baseResponse = {
+      timestamp: new Date().toISOString(),
+      server_status: "🟢 ATIVO",
+      database_status: dbStatus.status,
+      neon_serverless: true,
+      connection_info: {
+        connected: dbStatus.connected,
+        last_activity: dbStatus.lastActivity
+      }
     };
+
+    // Se o banco está HIBERNANDO, não tenta acordá-lo
+    if (!dbStatus.connected) {
+      return {
+        ...baseResponse,
+        message: "Servidor ativo, Neon hibernando (economia de recursos)",
+        note: "💡 O Neon despertará automaticamente na próxima operação de banco",
+        database_info: {
+          status: "SLEEPING",
+          reason: "Sem atividade por 5+ minutos - comportamento normal do serverless"
+        }
+      };
+    }
+
+    // Se está ativo, faz as consultas informativas
+    try {
+      const [{ max_connections }] = (await this.prismaService.$queryRaw`show max_connections`) as { max_connections: string }[];
+      const [{ count: countIdle }] = (await this.prismaService
+        .$queryRaw`select count(1) from pg_stat_activity where state = 'idle' and datname = 'tpedigital'`) as {
+          count: BigInt;
+        }[];
+      const [{ count: countActive }] = (await this.prismaService
+        .$queryRaw`select count(1) from pg_stat_activity where state = 'active' and datname = 'tpedigital'`) as {
+          count: BigInt;
+        }[];
+
+      return {
+        ...baseResponse,
+        message: "Servidor e Neon ativos - Todas as conexões funcionando",
+        database_info: {
+          status: "ACTIVE",
+          connections: {
+            active: +countActive.toString(),
+            idle: +countIdle.toString(),
+            max_allowed: +max_connections
+          },
+          performance: "✅ Pronto para consultas"
+        }
+      };
+    } catch (error) {
+      // Se falhar mesmo estando "conectado", pode ter hibernado durante a consulta
+      return {
+        ...baseResponse,
+        message: "Neon hibernou durante a verificação - será reconectado automaticamente",
+        database_info: {
+          status: "HIBERNATING",
+          note: "Hibernou entre a verificação de status e a consulta - normal em serverless"
+        }
+      };
+    }
+  }
+
+  @Get('/database/wakeup')
+  async wakeupDatabase() {
+    const initialStatus = this.prismaService.getConnectionStatus();
+
+    if (initialStatus.connected) {
+      return {
+        message: "Neon já está ativo - Não precisa despertar",
+        status: "ALREADY_ACTIVE",
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    try {
+      await this.prismaService.ensureConnection();
+      return {
+        message: "✅ Neon despertado com sucesso!",
+        status: "WOKEN_UP",
+        timestamp: new Date().toISOString(),
+        performance: "Banco pronto para operações"
+      };
+    } catch (error) {
+      console.error('❌ Erro ao tentar despertar o Neon via endpoint:', error.message);
+      return {
+        message: "❌ Falha ao despertar Neon",
+        status: "WAKE_UP_FAILED",
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        suggestion: "Tente novamente em alguns segundos"
+      };
+    }
   }
 
   @Post('upload')

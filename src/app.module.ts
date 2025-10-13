@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
 import { PetitionsModule } from './modules/petitions/petitions.module';
 import { ParticipantsModule } from './modules/participants/participants.module';
@@ -10,6 +10,7 @@ import { CongregationsModule } from './modules/congregations/congregations.modul
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { PrismaConnectionMiddleware } from './infra/prisma/prisma-connection.middleware';
+import { PrismaReconnectionInterceptor } from './infra/prisma/prisma-reconnection.interceptor';
 import { ConvertPdfToImagesUseCase } from './modules/petitions/convert-pdf-to-images.usecase';
 import { OcrService } from './infra/ocr.service';
 import { GroupsModule } from './modules/groups/groups.module';
@@ -22,6 +23,10 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PrismaReconnectionInterceptor,
     },
     ConvertPdfToImagesUseCase,
     OcrService
