@@ -22,7 +22,7 @@ export class CongregationsService {
     });
   }
 
-  @Cron(CronExpression.EVERY_WEEKDAY)
+  // @Cron(CronExpression.EVERY_WEEKDAY)
   async updateCongregations() {
     this.logger.log('Buscando congregações');
     const latStart = -23.507364;
