@@ -8,9 +8,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class GroupsService {
-    constructor(private readonly prisma: PrismaService) {
-        // this.handleCron();
-    }
+    constructor(private readonly prisma: PrismaService) { }
 
     async create(createGroupDto: CreateGroupDto) {
         const additionalInfo = createGroupDto.additionalInfo ? instanceToPlain<AdditionalInfoDto>(createGroupDto.additionalInfo) : undefined;
@@ -103,7 +101,7 @@ export class GroupsService {
         });
     }
 
-    // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async handleCron() {
         console.log('Iniciando cron de verificação de grupos sem designações...');
 
@@ -121,7 +119,8 @@ export class GroupsService {
                     designations: {
                         none: {} // Grupos que não têm nenhuma designação
                     },
-                    status: 'OPEN' // Apenas grupos ativos
+                    status: 'OPEN', // Apenas grupos ativos
+                    type: "ADDITIONAL"
                 }
             });
 
