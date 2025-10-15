@@ -151,8 +151,8 @@ export class GroupsService {
 
         try {
             await this.prisma.$transaction(async (prisma) => {
-                // 1. Criar 10 pontos genéricos de uma vez
-                const pointsData = Array.from({ length: 10 }, (_, i) => ({
+                // 1. Criar 9 pontos genéricos de uma vez
+                const pointsData = Array.from({ length: 9 }, (_, i) => ({
                     name: `Ponto ${i + 1} - ${groupName}`,
                     locationPhoto: null
                 }));
@@ -163,8 +163,8 @@ export class GroupsService {
 
                 console.log(`Criados ${createdPoints.length} pontos para o grupo ${groupName}`);
 
-                // 2. Criar 10 carrinhos genéricos de uma vez
-                const cartsData = Array.from({ length: 10 }, (_, i) => ({
+                // 2. Criar 9 carrinhos genéricos de uma vez
+                const cartsData = Array.from({ length: 9 }, (_, i) => ({
                     name: `Carrinho ${i + 1} - ${groupName}`,
                     description: `Carrinho genérico ${i + 1} para o grupo ${groupName}`,
                     themePhoto: null
@@ -182,7 +182,7 @@ export class GroupsService {
                     publicationCartId: createdCarts[i].id,
                     groupId: groupId,
                     minParticipants: group.configMin || 2,
-                    maxParticipants: group.configMax || 4,
+                    maxParticipants: group.configMax || 3,
                     status: true
                 }));
 
@@ -211,7 +211,7 @@ export class GroupsService {
                     pointId: point.id,
                     designationsId: designation.id,
                     config_min: group.configMin || 2,
-                    config_max: group.configMax || 4,
+                    config_max: group.configMax || 3,
                     config_status: true
                 }));
 
