@@ -9,7 +9,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 1G
+          memory: 2G
     environment:
       - PORT=7000
       - DATABASE_URL=$DATABASE_URL
