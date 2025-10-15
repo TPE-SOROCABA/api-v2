@@ -9,7 +9,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 @Injectable()
 export class GroupsService {
     constructor(private readonly prisma: PrismaService) {
-        this.handleCron();
+        // this.handleCron();
     }
 
     async create(createGroupDto: CreateGroupDto) {
@@ -103,7 +103,7 @@ export class GroupsService {
         });
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async handleCron() {
         console.log('Iniciando cron de verificação de grupos sem designações...');
 
