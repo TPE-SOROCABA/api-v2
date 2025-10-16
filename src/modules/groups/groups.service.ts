@@ -164,7 +164,7 @@ export class GroupsService {
 
                 // 2. Criar 9 carrinhos genéricos de uma vez
                 const cartsData = Array.from({ length: 9 }, (_, i) => ({
-                    name: `Carrinho ${i + 1} - ${groupName}`,
+                    name: `${i + 1}`,
                     description: `Carrinho genérico ${i + 1} para o grupo ${groupName}`,
                     themePhoto: null
                 }));
@@ -180,8 +180,8 @@ export class GroupsService {
                     pointId: point.id,
                     publicationCartId: createdCarts[i].id,
                     groupId: groupId,
-                    minParticipants: group.configMin || 2,
-                    maxParticipants: group.configMax || 3,
+                    minParticipants: 2,
+                    maxParticipants: 3,
                     status: true
                 }));
 
