@@ -21,7 +21,11 @@ export class GroupsParticipantsService {
             include: {
                 participantsGroup: {
                     include: {
-                        participant: true
+                        participant: {
+                            include: {
+                                congregation: true,
+                            }
+                        }
                     }
                 }
             }
