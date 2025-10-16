@@ -39,7 +39,8 @@ export class PointsService {
       const pointPublicationCarts = await this.prisma.pointPublicationCart.findMany({
         where: { groupId },
         include: {
-          point: true
+          point: true,
+          publicationCarts: true
         }
       });
 
@@ -47,6 +48,7 @@ export class PointsService {
         id: ppc.id,
         pointId: ppc.pointId,
         pointName: ppc.point.name,
+        cartName: ppc.publicationCarts.name,
         minParticipants: ppc.minParticipants,
         maxParticipants: ppc.maxParticipants,
         status: ppc.status,
@@ -134,7 +136,8 @@ export class PointsService {
             groupId: groupId
           },
           include: {
-            point: true
+            point: true,
+            publicationCarts: true
           }
         });
 
@@ -142,6 +145,7 @@ export class PointsService {
           id: pointPublicationCart.id,
           pointId: pointPublicationCart.pointId,
           pointName: pointPublicationCart.point.name,
+          cartName: pointPublicationCart.publicationCarts.name,
           minParticipants: pointPublicationCart.minParticipants,
           maxParticipants: pointPublicationCart.maxParticipants,
           status: pointPublicationCart.status,
@@ -282,13 +286,17 @@ export class PointsService {
         const updatedPointPubCart = await tx.pointPublicationCart.update({
           where: { id: pointId },
           data: updateData,
-          include: { point: true }
+          include: { 
+            point: true,
+            publicationCarts: true
+          }
         });
 
         return {
           id: updatedPointPubCart.id,
           pointId: updatedPointPubCart.pointId,
           pointName: updatedPointPubCart.point.name,
+          cartName: updatedPointPubCart.publicationCarts.name,
           minParticipants: updatedPointPubCart.minParticipants,
           maxParticipants: updatedPointPubCart.maxParticipants,
           status: updatedPointPubCart.status,
