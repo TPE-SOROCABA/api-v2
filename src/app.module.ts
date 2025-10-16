@@ -15,9 +15,10 @@ import { ConvertPdfToImagesUseCase } from './modules/petitions/convert-pdf-to-im
 import { OcrService } from './infra/ocr.service';
 import { GroupsModule } from './modules/groups/groups.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { PointsModule } from './modules/points/points.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule],
+  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule],
   controllers: [AppController],
   providers: [
     {
