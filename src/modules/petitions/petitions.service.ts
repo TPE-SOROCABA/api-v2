@@ -216,6 +216,57 @@ export class PetitionsService {
         return protocol;
     }
 
+    async deletePetition(id: string): Promise<{ message: string }> {
+        this.logger.log(`Iniciando exclusão da petição: ${id}`);
+        
+        // Verifica se a petição existe
+        const petition = await this.prismaService.petitions.findUnique({
+            where: { id },
+            include: {
+                participants: true
+            }
+        });
+
+        if (!petition) {
+            throw new NotFoundException('Petição não encontrada');
+        }
+
+        // Verifica se há participantes vinculados
+        if (petition.participants && petition.participants.length > 0) {
+            this.logger.warn(`Tentativa de exclusão de petição com participantes: ${id}`);
+            throw new ConflictException(`Não é possível excluir a petição. Existem ${petition.participants.length} participante(s) vinculado(s).`);
+        }
+
+        this.logger.log(`Deletando arquivos da petição: ${id}`);
+        
+        // Deleta os arquivos do Firebase
+        try {
+            await this.firebaseService.deleteFileByUrl(petition.publicUrl).catch(() => {
+                this.logger.warn(`Arquivo público não encontrado ou já deletado: ${petition.publicUrl}`);
+            });
+            
+            await this.firebaseService.deleteFileByUrl(petition.privateUrl).catch(() => {
+                this.logger.warn(`Arquivo privado não encontrado ou já deletado: ${petition.privateUrl}`);
+            });
+            
+            this.logger.log(`Arquivos deletados com sucesso para petição: ${id}`);
+        } catch (error) {
+            this.logger.error(`Erro ao deletar arquivos da petição ${id}:`, error);
+            // Continua com a exclusão mesmo se houver erro nos arquivos
+        }
+
+        // Exclui a petição do banco de dados
+        await this.prismaService.petitions.delete({
+            where: { id }
+        });
+
+        this.logger.log(`Petição excluída com sucesso: ${id}`);
+        
+        return {
+            message: `Petição ${petition.name} (${petition.protocol}) excluída com sucesso`
+        };
+    }
+
     private generateHash(buffer: Buffer) {
         return createHash('sha256').update(buffer).digest('hex');
     }

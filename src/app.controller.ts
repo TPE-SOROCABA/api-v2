@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, ParseIntPipe, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { PrismaService } from './infra/prisma/prisma.service';
 import { TransactionLogger } from './infra/transaction.logger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -127,10 +127,10 @@ export class AppController {
   )
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
-    @Query('bypass', new ParseIntPipe({ optional: true })) bypass?: number
+    @Query('bypass') bypass?: string
   ) {
-    // Converte number para boolean (0 = false, 1 = true, undefined = false)
-    const bypassValidation = Boolean(bypass);
+    // Converte string para boolean de forma mais flexível
+    const bypassValidation = bypass === '1' || bypass === 'true';
     
     const imagesPath = await this.convertPdfToImagesUseCase.execute(file.path, bypassValidation);
     const nameParams: ImageParameters = {

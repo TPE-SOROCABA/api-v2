@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -49,10 +49,10 @@ export class PetitionsController {
     )
     async uploadFile(
         @UploadedFile() file: Express.Multer.File,
-        @Query('bypass', new ParseIntPipe({ optional: true })) bypass?: number
+        @Query('bypass') bypass?: string
     ) {
-        // Converte number para boolean (0 = false, 1 = true, undefined = false)
-        const bypassValidation = Boolean(bypass);
+        // Converte string para boolean de forma mais flexível
+        const bypassValidation = bypass === '1' || bypass === 'true';
         return this.petitionService.uploadFile(file, bypassValidation);
     }
 
@@ -81,10 +81,15 @@ export class PetitionsController {
     async updateUploadFile(
         @Param() params: FindOneParams, 
         @UploadedFile() file: Express.Multer.File,
-        @Query('bypass', new ParseIntPipe({ optional: true })) bypass?: number
+        @Query('bypass') bypass?: string
     ) {
-        // Converte number para boolean (0 = false, 1 = true, undefined = false)
-        const bypassValidation = Boolean(bypass);
+        // Converte string para boolean de forma mais flexível
+        const bypassValidation = bypass === '1' || bypass === 'true';
         return this.petitionService.updateUploadFile(params.id, file, bypassValidation);
+    }
+
+    @Delete(':id')
+    async deletePetition(@Param() params: FindOneParams) {
+        return this.petitionService.deletePetition(params.id);
     }
 }
