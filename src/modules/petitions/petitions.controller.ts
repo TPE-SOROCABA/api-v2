@@ -47,8 +47,13 @@ export class PetitionsController {
             },
         }),
     )
-    async uploadFile(@UploadedFile() file: Express.Multer.File) {
-        return this.petitionService.uploadFile(file);
+    async uploadFile(
+        @UploadedFile() file: Express.Multer.File,
+        @Query('bypass', new ParseIntPipe({ optional: true })) bypass?: number
+    ) {
+        // Converte number para boolean (0 = false, 1 = true, undefined = false)
+        const bypassValidation = Boolean(bypass);
+        return this.petitionService.uploadFile(file, bypassValidation);
     }
 
     @Put('upload/:id')
@@ -73,7 +78,13 @@ export class PetitionsController {
             },
         }),
     )
-    async updateUploadFile(@Param() params: FindOneParams, @UploadedFile() file: Express.Multer.File) {
-        return this.petitionService.updateUploadFile(params.id, file);
+    async updateUploadFile(
+        @Param() params: FindOneParams, 
+        @UploadedFile() file: Express.Multer.File,
+        @Query('bypass', new ParseIntPipe({ optional: true })) bypass?: number
+    ) {
+        // Converte number para boolean (0 = false, 1 = true, undefined = false)
+        const bypassValidation = Boolean(bypass);
+        return this.petitionService.updateUploadFile(params.id, file, bypassValidation);
     }
 }

@@ -10,11 +10,13 @@ import * as path from 'path';
 export class ConvertPdfToImagesUseCase {
     private readonly logger = new TransactionLogger(ConvertPdfToImagesUseCase.name);
 
-    async execute(pdfPath: string): Promise<string[]> {
+    async execute(pdfPath: string, bypass = false): Promise<string[]> {
         this.logger.log(`Iniciando validação do PDF no caminho: ${pdfPath}`);
 
-        await this.validatePdf(pdfPath, 'UBLICO ESPECIAL');
-        this.logger.log('PDF validado com sucesso.');
+        if (!bypass) {
+            await this.validatePdf(pdfPath, 'UBLICO ESPECIAL');
+            this.logger.log('PDF validado com sucesso.');
+        }
 
         const outputDir = path.join(__dirname, '..', '..', 'output');
         this.logger.log(`Verificando diretório de saída: ${outputDir}`);

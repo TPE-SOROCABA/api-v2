@@ -70,10 +70,10 @@ export class PetitionsService {
         return petition;
     }
 
-    async uploadFile(file: Express.Multer.File): Promise<Petitions> {
+    async uploadFile(file: Express.Multer.File, bypass: boolean = false): Promise<Petitions> {
         const hash = await this.checkFileHash(file);
-        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
-        const imagesPath = await this.convertPdfAndImage(file);
+        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}${bypass ? ' (modo bypass ativo)' : ''}`);
+        const imagesPath = await this.convertPdfAndImage(file, bypass);
         const [urls, name] = await Promise.all([
             this.uploadS3(imagesPath, file),
             this.extractNameFromImage(imagesPath[0])
@@ -111,9 +111,9 @@ export class PetitionsService {
         return petition;
     }
 
-    async updateUploadFile(id: string, file: Express.Multer.File) {
+    async updateUploadFile(id: string, file: Express.Multer.File, bypass: boolean = false) {
         const hash = await this.checkFileHash(file);
-        this.logger.log(`Iniciando atualização do arquivo: ${file.originalname}`);
+        this.logger.log(`Iniciando atualização do arquivo: ${file.originalname}${bypass ? ' (modo bypass ativo)' : ''}`);
         const petition = await this.prismaService.petitions.findUnique({
             where: { id }
         });
@@ -126,7 +126,7 @@ export class PetitionsService {
         this.logger.log(`Deletando arquivos antigos: ${keyOne} e ${keyTwo}`);
         await this.firebaseService.deleteFileByUrl(petition.publicUrl).catch(() => null);
         await this.firebaseService.deleteFileByUrl(petition.privateUrl).catch(() => null);
-        const imagesPath = await this.convertPdfAndImage(file);
+        const imagesPath = await this.convertPdfAndImage(file, bypass);
         const urls = await this.uploadS3(imagesPath, file);
 
         const updatedPetition = await this.prismaService.petitions.update({
@@ -185,11 +185,11 @@ export class PetitionsService {
         return urls
     }
 
-    private async convertPdfAndImage(file: Express.Multer.File): Promise<string[]> {
-        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}`);
+    private async convertPdfAndImage(file: Express.Multer.File, bypass: boolean = false): Promise<string[]> {
+        this.logger.log(`Iniciando upload do arquivo: ${file.originalname}${bypass ? ' (modo bypass ativo)' : ''}`);
         // Converte o PDF em imagens
         this.logger.log('Convertendo PDF para imagens...');
-        const imagesPath = await this.convertPdfToImagesUseCase.execute(file.path);
+        const imagesPath = await this.convertPdfToImagesUseCase.execute(file.path, bypass);
         this.logger.log(`PDF convertido. Total de imagens geradas: ${imagesPath.length}`);
         return imagesPath;
     }
