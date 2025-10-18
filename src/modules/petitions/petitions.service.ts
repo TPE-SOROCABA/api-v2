@@ -24,25 +24,57 @@ export class PetitionsService {
     ) { }
 
     async getAllPetitions(params: FindAllParams): Promise<Petitions[]> {
-        const orConditions = [];
-        if (params.search) {
-            orConditions.push({ protocol: { contains: params.search } });
-            orConditions.push({ name: { contains: params.search, mode: 'insensitive' } });
+        let query = `
+            SELECT DISTINCT p.*
+            FROM petitions p
+            LEFT JOIN participants pt ON p.id = pt.petition_id
+            WHERE 1=1
+        `;
+
+        const queryParams: any[] = [];
+        let paramIndex = 1;
+
+        // Filtro por status se fornecido
+        if (params.status) {
+            query += ` AND p.status = $${paramIndex}`;
+            queryParams.push(params.status);
+            paramIndex++;
         }
 
+        // Busca dinâmica se fornecida
+        if (params.search) {
+            query += ` AND (
+                p.name ILIKE $${paramIndex} OR
+                pt.name ILIKE $${paramIndex} OR
+                pt.email ILIKE $${paramIndex} OR
+                pt.phone ILIKE $${paramIndex}
+            )`;
+            queryParams.push(`%${params.search}%`);
+            paramIndex++;
+        }
+
+        query += ` ORDER BY p.created_at DESC`;
+
+        const petitionsResult = await this.prismaService.$queryRawUnsafe(query, ...queryParams) as any[];
+
+        if (!petitionsResult || petitionsResult.length === 0) {
+            throw new NotFoundException('Nenhuma petição encontrada');
+        }
+
+        // Buscar os participantes para cada petição encontrada
+        const petitionIds = petitionsResult.map((p: any) => p.id);
+
         const petitions = await this.prismaService.petitions.findMany({
+            where: {
+                id: { in: petitionIds }
+            },
             include: {
                 participants: true
             },
-            where: {
-                ...(params.status ? { status: params.status } : {}),
-                OR: orConditions.length > 0 ? orConditions : undefined
+            orderBy: {
+                createdAt: 'desc'
             }
         });
-
-        if (!petitions) {
-            throw new NotFoundException('Nenhuma petição encontrada');
-        }
 
         return petitions;
     }
@@ -224,7 +256,7 @@ export class PetitionsService {
 
     async deletePetition(id: string): Promise<{ message: string }> {
         this.logger.log(`Iniciando exclusão da petição: ${id}`);
-        
+
         // Verifica se a petição existe
         const petition = await this.prismaService.petitions.findUnique({
             where: { id },
@@ -244,17 +276,17 @@ export class PetitionsService {
         }
 
         this.logger.log(`Deletando arquivos da petição: ${id}`);
-        
+
         // Deleta os arquivos do Firebase
         try {
             await this.firebaseService.deleteFileByUrl(petition.publicUrl).catch(() => {
                 this.logger.warn(`Arquivo público não encontrado ou já deletado: ${petition.publicUrl}`);
             });
-            
+
             await this.firebaseService.deleteFileByUrl(petition.privateUrl).catch(() => {
                 this.logger.warn(`Arquivo privado não encontrado ou já deletado: ${petition.privateUrl}`);
             });
-            
+
             this.logger.log(`Arquivos deletados com sucesso para petição: ${id}`);
         } catch (error) {
             this.logger.error(`Erro ao deletar arquivos da petição ${id}:`, error);
@@ -267,7 +299,7 @@ export class PetitionsService {
         });
 
         this.logger.log(`Petição excluída com sucesso: ${id}`);
-        
+
         return {
             message: `Petição ${petition.name} (${petition.protocol}) excluída com sucesso`
         };
@@ -277,14 +309,14 @@ export class PetitionsService {
         try {
             const webhookUrl = `https://auto.wfelipe.com.br/webhook/b1daef03-400f-472a-826b-7ec92c2ea883/${petitionId}`;
             this.logger.log(`Chamando webhook para petição: ${petitionId}`);
-            
+
             const response = await axios.post(webhookUrl, {}, {
                 timeout: 5000, // 5 segundos de timeout
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
-            
+
             this.logger.log(`Webhook chamado com sucesso para petição ${petitionId}. Status: ${response.status}`);
         } catch (error) {
             // Falha silenciosa - não afeta o fluxo principal
