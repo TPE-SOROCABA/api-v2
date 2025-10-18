@@ -60,7 +60,12 @@ export class ParticipantsService {
         email: {
           contains: params.email || ''
         },
-        profile: params.profile || undefined
+        profile: params.profile || undefined,
+        petitions: {
+          status: {
+            in: [PetitionStatus.WAITING, PetitionStatus.ACTIVE]
+          }
+        }
       }
     });
 
