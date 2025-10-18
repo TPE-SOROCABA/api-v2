@@ -5,6 +5,8 @@ import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { instanceToPlain } from 'class-transformer';
 import { AdditionalInfoDto } from './dto/additional-info.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ParticipantProfile, ParticipantGroupProfile } from '@prisma/client';
+import { JwtPayload, isAdminProfile, isCaptainProfile } from 'src/shared/types';
 
 @Injectable()
 export class GroupsService {
@@ -31,8 +33,53 @@ export class GroupsService {
         return this.findOne(group.id);
     }
 
-    async findAll() {
-        const groups = await this.prisma.groups.findMany({
+    async findAll(user?: JwtPayload) {
+        let whereCondition = {};
+
+        // Se o usuário estiver logado, aplicar filtros baseados no perfil
+        if (user && user.id) {
+            // Se for COORDINATOR ou ADMIN_ANALYST, pode ver todos os grupos
+            if (isAdminProfile(user.profile)) {
+                // Sem filtro - pode ver todos os grupos
+            } else if (isCaptainProfile(user.profile)) {
+                // Para CAPTAIN ou ASSISTANT_CAPTAIN, buscar grupos onde ele participa
+                const participant = await this.prisma.participants.findUnique({
+                    where: { id: user.id },
+                    include: {
+                        participantsGroup: {
+                            include: {
+                                group: true
+                            }
+                        }
+                    }
+                });
+
+                if (participant) {
+                    const userGroupIds = participant.participantsGroup
+                        .filter(pg => pg.profile === ParticipantGroupProfile.CAPTAIN ||
+                            pg.profile === ParticipantGroupProfile.ASSISTANT_CAPTAIN)
+                        .map(pg => pg.groupId);
+
+                    if (userGroupIds.length > 0) {
+                        whereCondition = {
+                            id: {
+                                in: userGroupIds
+                            }
+                        };
+                    } else {
+                        // Se não é capitão de nenhum grupo, retorna array vazio
+                        return [];
+                    }
+                } else {
+                    // Se participante não encontrado, retorna array vazio
+                    return [];
+                }
+            } else {
+                // Outros perfis não podem ver grupos
+                return [];
+            }
+        } const groups = await this.prisma.groups.findMany({
+            where: whereCondition,
             include: {
                 participantsGroup: true,
             }

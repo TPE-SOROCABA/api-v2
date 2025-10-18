@@ -9,12 +9,17 @@ import {
     UsePipes,
     ValidationPipe,
     Put,
+    UseGuards,
+    Request,
 } from '@nestjs/common';
 import { GroupsService } from './groups.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { AuthenticatedRequest } from 'src/shared/types';
 
 @Controller('groups')
+@UseGuards(AuthGuard)
 export class GroupsController {
     constructor(private readonly groupsService: GroupsService) { }
 
@@ -24,8 +29,8 @@ export class GroupsController {
     }
 
     @Get()
-    findAll() {
-        return this.groupsService.findAll();
+    findAll(@Request() req: AuthenticatedRequest) {
+        return this.groupsService.findAll(req.user);
     }
 
     @Get(':id')
