@@ -36,7 +36,7 @@ export class PetitionsService {
 
         // Filtro por status se fornecido
         if (params.status) {
-            query += ` AND p.status = $${paramIndex}`;
+            query += ` AND p.status = $${paramIndex}::"PetitionStatus"`;
             queryParams.push(params.status);
             paramIndex++;
         }
@@ -105,7 +105,7 @@ export class PetitionsService {
 
     async excludePetition(id: string): Promise<Petitions> {
         this.logger.log(`Iniciando exclusão da petição: ${id}`);
-        
+
         // Verifica se a petição existe
         const petition = await this.prismaService.petitions.findUnique({
             where: { id },
@@ -121,15 +121,15 @@ export class PetitionsService {
         // Remove todos os participantes da petição de todos os grupos
         if (petition.participants && petition.participants.length > 0) {
             this.logger.log(`Removendo ${petition.participants.length} participante(s) de todos os grupos`);
-            
+
             const participantIds = petition.participants.map(p => p.id);
-            
+
             await this.prismaService.participantsGroups.deleteMany({
                 where: {
                     participantId: { in: participantIds }
                 }
             });
-            
+
             this.logger.log('Participantes removidos de todos os grupos com sucesso');
         }
 
@@ -151,7 +151,7 @@ export class PetitionsService {
 
     async activatePetition(id: string): Promise<Petitions> {
         this.logger.log(`Iniciando ativação da petição: ${id}`);
-        
+
         // Verifica se a petição existe
         const petition = await this.prismaService.petitions.findUnique({
             where: { id }
