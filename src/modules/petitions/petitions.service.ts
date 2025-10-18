@@ -10,6 +10,7 @@ import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import { FirebaseService } from 'src/infra/firebase.service';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 
 @Injectable()
 export class PetitionsService {
@@ -107,6 +108,11 @@ export class PetitionsService {
             }
         });
         this.logger.log(`Registro criado com sucesso. ID: ${petition.id}`);
+
+        // Chama webhook após criação da petição (não essencial - fire and forget)
+        this.callPetitionWebhook(petition.id).catch(() => {
+            // Ignora erros silenciosamente
+        });
 
         return petition;
     }
@@ -265,6 +271,25 @@ export class PetitionsService {
         return {
             message: `Petição ${petition.name} (${petition.protocol}) excluída com sucesso`
         };
+    }
+
+    private async callPetitionWebhook(petitionId: string): Promise<void> {
+        try {
+            const webhookUrl = `https://auto.wfelipe.com.br/webhook/b1daef03-400f-472a-826b-7ec92c2ea883/${petitionId}`;
+            this.logger.log(`Chamando webhook para petição: ${petitionId}`);
+            
+            const response = await axios.post(webhookUrl, {}, {
+                timeout: 5000, // 5 segundos de timeout
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            this.logger.log(`Webhook chamado com sucesso para petição ${petitionId}. Status: ${response.status}`);
+        } catch (error) {
+            // Falha silenciosa - não afeta o fluxo principal
+            this.logger.warn(`Falha ao chamar webhook para petição ${petitionId}:`, error.message);
+        }
     }
 
     private generateHash(buffer: Buffer) {
