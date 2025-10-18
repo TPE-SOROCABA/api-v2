@@ -103,6 +103,80 @@ export class PetitionsService {
         return petition;
     }
 
+    async excludePetition(id: string): Promise<Petitions> {
+        this.logger.log(`Iniciando exclusão da petição: ${id}`);
+        
+        // Verifica se a petição existe
+        const petition = await this.prismaService.petitions.findUnique({
+            where: { id },
+            include: {
+                participants: true
+            }
+        });
+
+        if (!petition) {
+            throw new NotFoundException('Petição não encontrada');
+        }
+
+        // Remove todos os participantes da petição de todos os grupos
+        if (petition.participants && petition.participants.length > 0) {
+            this.logger.log(`Removendo ${petition.participants.length} participante(s) de todos os grupos`);
+            
+            const participantIds = petition.participants.map(p => p.id);
+            
+            await this.prismaService.participantsGroups.deleteMany({
+                where: {
+                    participantId: { in: participantIds }
+                }
+            });
+            
+            this.logger.log('Participantes removidos de todos os grupos com sucesso');
+        }
+
+        // Atualiza o status da petição para EXCLUDED
+        const updatedPetition = await this.prismaService.petitions.update({
+            where: { id },
+            data: {
+                status: PetitionStatus.EXCLUDED
+            },
+            include: {
+                participants: true
+            }
+        });
+
+        this.logger.log(`Petição ${id} excluída com sucesso - Status alterado para EXCLUDED`);
+
+        return updatedPetition;
+    }
+
+    async activatePetition(id: string): Promise<Petitions> {
+        this.logger.log(`Iniciando ativação da petição: ${id}`);
+        
+        // Verifica se a petição existe
+        const petition = await this.prismaService.petitions.findUnique({
+            where: { id }
+        });
+
+        if (!petition) {
+            throw new NotFoundException('Petição não encontrada');
+        }
+
+        // Atualiza o status da petição para WAITING
+        const updatedPetition = await this.prismaService.petitions.update({
+            where: { id },
+            data: {
+                status: PetitionStatus.WAITING
+            },
+            include: {
+                participants: true
+            }
+        });
+
+        this.logger.log(`Petição ${id} ativada com sucesso - Status alterado para WAITING`);
+
+        return updatedPetition;
+    }
+
     async uploadFile(file: Express.Multer.File, bypass: boolean = false): Promise<Petitions> {
         const hash = await this.checkFileHash(file);
         this.logger.log(`Iniciando upload do arquivo: ${file.originalname}${bypass ? ' (modo bypass ativo)' : ''}`);

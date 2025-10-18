@@ -25,6 +25,16 @@ export class PetitionsController {
         return this.petitionService.changeStatusToWaitingInformation(params.id);
     }
 
+    @Patch('exclude/:id')
+    async excludePetition(@Param() params: FindOneParams) {
+        return this.petitionService.excludePetition(params.id);
+    }
+
+    @Patch('activate/:id')
+    async activatePetition(@Param() params: FindOneParams) {
+        return this.petitionService.activatePetition(params.id);
+    }
+
     @Post('upload')
     @UseInterceptors(
         FileInterceptor('file', {
