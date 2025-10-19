@@ -148,7 +148,7 @@ export class GroupsService {
         });
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async handleCron() {
         console.log('Iniciando cron de verificação de grupos sem designações...');
 
@@ -167,7 +167,6 @@ export class GroupsService {
                         none: {} // Grupos que não têm nenhuma designação
                     },
                     status: 'OPEN', // Apenas grupos ativos
-                    type: "ADDITIONAL"
                 }
             });
 
