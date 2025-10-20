@@ -71,7 +71,7 @@ export class DashboardService {
         const participantId = incident.participantId;
         if (!acc[participantId]) {
           acc[participantId] = {
-            profilePhoto: "",
+            profilePhoto: incident.participant.profilePhoto,
             name: incident.participant.name,
             count: 0,
           };
