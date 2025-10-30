@@ -16,9 +16,10 @@ import { OcrService } from './infra/ocr.service';
 import { GroupsModule } from './modules/groups/groups.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { PointsModule } from './modules/points/points.module';
+import { DesignationsModule } from './modules/designations/designations.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule],
+  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule],
   controllers: [AppController],
   providers: [
     {
