@@ -69,7 +69,15 @@ export class PetitionsService {
                 id: { in: petitionIds }
             },
             include: {
-                participants: true
+                participants: {
+                    include: {
+                        participantsGroup: {
+                            include: {
+                                group: true
+                            }
+                        }
+                    }
+                }
             },
             orderBy: {
                 createdAt: 'desc'
