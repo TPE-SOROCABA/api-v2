@@ -249,11 +249,13 @@ model Petitions {
 }
 
 model Congregations {
-  id    Int    @id @default(autoincrement())
-  name  String
-  city  String
-  state String
-
+  id           Int            @id @default(autoincrement())
+  name         String
+  city         String?
+  state        String?
+  address      String?
+  latitude     Float?
+  longitude    Float?
   participants Participants[]
 
   @@map("congregations")
