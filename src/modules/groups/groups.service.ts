@@ -29,7 +29,7 @@ export class GroupsService {
                 type: createGroupDto.type,
             },
         });
-
+        this.handleCron();
         return this.findOne(group.id);
     }
 
@@ -148,7 +148,6 @@ export class GroupsService {
         });
     }
 
-    // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async handleCron() {
         console.log('Iniciando cron de verificação de grupos sem designações...');
 
@@ -156,13 +155,9 @@ export class GroupsService {
             // Busca grupos que têm participantes mas não têm designações
             const groupsWithoutDesignations = await this.prisma.groups.findMany({
                 include: {
-                    participantsGroup: true,
                     designations: true,
                 },
                 where: {
-                    participantsGroup: {
-                        some: {} // Grupos que têm pelo menos um participante
-                    },
                     designations: {
                         none: {} // Grupos que não têm nenhuma designação
                     },
@@ -170,7 +165,7 @@ export class GroupsService {
                 }
             });
 
-            console.log(`Encontrados ${groupsWithoutDesignations.length} grupos sem designações`);
+            console.log(`Encontrados ${groupsWithoutDesignations.length} grupos sem designações ${groupsWithoutDesignations.map(g => g.name).join(', ')}`);
 
             if (groupsWithoutDesignations.length === 0) {
                 console.log('Nenhum grupo encontrado para processar');
