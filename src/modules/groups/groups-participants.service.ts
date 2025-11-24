@@ -62,7 +62,7 @@ export class GroupsParticipantsService {
 
         const isParticipantInAnotherGroupType = participant.participantsGroup.some(participantGroup => participantGroup.group.type === group.type);
         this.logger.debug(`Verificação se participante já está em outro grupo do mesmo tipo: ${isParticipantInAnotherGroupType}`);
-        if (isParticipantInAnotherGroupType) {
+        if (isParticipantInAnotherGroupType && group.type !== GroupType.SPECIAL) {
             this.logger.warn(`Participante ${participant.name} já está em um grupo do tipo ${GroupTypePtBr[group.type]}`);
             throw new ConflictException(`Participante ${participant.name} já está em um grupo do tipo ${GroupTypePtBr[group.type]}`);
         }
