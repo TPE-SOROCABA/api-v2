@@ -28,6 +28,7 @@ export class PetitionsService {
             SELECT DISTINCT p.*
             FROM petitions p
             LEFT JOIN participants pt ON p.id = pt.petition_id
+            LEFT JOIN congregations c ON pt.congregation_id = c.id
             WHERE 1=1
         `;
 
@@ -47,7 +48,8 @@ export class PetitionsService {
                 p.name ILIKE $${paramIndex} OR
                 pt.name ILIKE $${paramIndex} OR
                 pt.email ILIKE $${paramIndex} OR
-                pt.phone ILIKE $${paramIndex}
+                pt.phone ILIKE $${paramIndex} OR
+                c.name ILIKE $${paramIndex}
             )`;
             queryParams.push(`%${params.search}%`);
             paramIndex++;
@@ -75,7 +77,8 @@ export class PetitionsService {
                             include: {
                                 group: true
                             }
-                        }
+                        },
+                        congregation: true
                     }
                 }
             },
