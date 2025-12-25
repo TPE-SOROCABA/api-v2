@@ -102,6 +102,9 @@ export class DashboardService {
 
     return {
       waitingList: petitions.filter((p) => p.status === PetitionStatus.WAITING).length,
+      waitingListName: petitions
+        .filter((p) => p.status === PetitionStatus.WAITING)
+        .map((p) => p.name),
       groups: params?.groupId ? participantsInGroup : groups.length,
       points: points.length,
       averagePresence: Number(averagePresence.toFixed()),
