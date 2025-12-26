@@ -3,6 +3,7 @@ import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
 import { FindAllParams } from './dto/find-params.dto';
 import { ParticipantSex, Petitions, PetitionStatus, Weekday } from '@prisma/client';
+import { AvailabilityItem } from '../participants/dto/create-participant.dto';
 
 const WEEKDAY = {
   [Weekday.SUNDAY]: 0,
@@ -105,7 +106,9 @@ export class DashboardService {
     const filteredPetitions = petitions.filter((petition: any) => {
       if (petition.status !== PetitionStatus.WAITING) return false;
 
-      return groups.some((group) => {
+      let matchedAt: string | undefined;
+
+      const hasMatch = groups.some((group) => {
         const groupWeekday = WEEKDAY[group.configWeekday];
         const startHour = parseInt(group.configStartHour.split(':')[0], 10);
 
@@ -114,16 +117,33 @@ export class DashboardService {
         else if (startHour < 18) period = 'afternoon';
         else period = 'evening';
 
-        const availability = petition.availability as any[];
+        const availability = petition.availability as AvailabilityItem[];
         const dayAvailability = availability.find((a) => a.weekDay === groupWeekday);
 
-        return dayAvailability && dayAvailability[period] === true;
+        if (dayAvailability && dayAvailability[period] === true) {
+          matchedAt = dayAvailability.updatedAt;
+          return true;
+        }
+        return false;
       });
+
+      if (hasMatch) {
+        (petition as any).relevantUpdatedAt = matchedAt;
+        return true;
+      }
+      return false;
+    }).sort((a: any, b: any) => {
+      const timeA = a.relevantUpdatedAt ? new Date(a.relevantUpdatedAt).getTime() : new Date(a.updated_at).getTime();
+      const timeB = b.relevantUpdatedAt ? new Date(b.relevantUpdatedAt).getTime() : new Date(b.updated_at).getTime();
+      return timeA - timeB;
     });
 
     return {
       waitingList: filteredPetitions.length,
-      waitingListName: filteredPetitions.map((p) => p.name),
+      waiting: filteredPetitions.map((p: any) => ({
+        name: p.name,
+        updatedAt: new Date(p.relevantUpdatedAt || p.updated_at).toLocaleDateString('pt-BR'),
+      })),
       groups: params?.groupId ? participantsInGroup : groups.length,
       points: points.length,
       averagePresence: Number(averagePresence.toFixed()),
