@@ -140,5 +140,9 @@ export class AvailabilityItem {
 
     @IsBoolean({ message: 'evening deve ser um valor booleano' })
     evening: boolean;
+
+    @IsOptional()
+    @IsString({ message: 'updatedAt deve ser do tipo texto' })
+    updatedAt: string;
 }
 

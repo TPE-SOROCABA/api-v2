@@ -26,6 +26,8 @@ export class DashboardService {
           id: true,
           configWeekday: true,
           configMax: true,
+          configStartHour: true,
+          name: true,
         },
         ...(params.groupId && { where: { id: params.groupId } }),
       }),
@@ -83,7 +85,7 @@ export class DashboardService {
     );
 
     const petitions = await this.prismaService.$queryRaw<Petitions[]>`
-            SELECT pt.* 
+            SELECT * 
             FROM "public"."participants" p
             INNER JOIN "public"."petitions" pt ON pt.id = p.petition_id
             WHERE EXISTS (
@@ -100,11 +102,28 @@ export class DashboardService {
 
     const participantsInGroup = await this.getParticipantsInGroup(params.groupId);
 
+    const filteredPetitions = petitions.filter((petition: any) => {
+      if (petition.status !== PetitionStatus.WAITING) return false;
+
+      return groups.some((group) => {
+        const groupWeekday = WEEKDAY[group.configWeekday];
+        const startHour = parseInt(group.configStartHour.split(':')[0], 10);
+
+        let period: 'morning' | 'afternoon' | 'evening';
+        if (startHour < 12) period = 'morning';
+        else if (startHour < 18) period = 'afternoon';
+        else period = 'evening';
+
+        const availability = petition.availability as any[];
+        const dayAvailability = availability.find((a) => a.weekDay === groupWeekday);
+
+        return dayAvailability && dayAvailability[period] === true;
+      });
+    });
+
     return {
-      waitingList: petitions.filter((p) => p.status === PetitionStatus.WAITING).length,
-      waitingListName: petitions
-        .filter((p) => p.status === PetitionStatus.WAITING)
-        .map((p) => p.name),
+      waitingList: filteredPetitions.length,
+      waitingListName: filteredPetitions.map((p) => p.name),
       groups: params?.groupId ? participantsInGroup : groups.length,
       points: points.length,
       averagePresence: Number(averagePresence.toFixed()),
