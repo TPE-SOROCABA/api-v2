@@ -3,12 +3,6 @@ import { GroupType, ParticipantSex, PetitionStatus } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { UpdateGroupParticipanteProfileDto } from './dto/update-group-participante-profile.dto';
 
-const GroupTypePtBr = {
-    [GroupType.MAIN]: 'Principal',
-    [GroupType.ADDITIONAL]: 'Adicional',
-    [GroupType.SPECIAL]: 'Especial'
-}
-
 @Injectable()
 export class GroupsParticipantsService {
     logger = new Logger(GroupsParticipantsService.name);
@@ -60,11 +54,16 @@ export class GroupsParticipantsService {
             throw new ConflictException(`Participante ${participant.name} já está no grupo ${group.name}`);
         }
 
-        const isParticipantInAnotherGroupType = participant.participantsGroup.some(participantGroup => participantGroup.group.type === group.type);
-        this.logger.debug(`Verificação se participante já está em outro grupo do mesmo tipo: ${isParticipantInAnotherGroupType}`);
-        if (isParticipantInAnotherGroupType && group.type !== GroupType.SPECIAL) {
-            this.logger.warn(`Participante ${participant.name} já está em um grupo do tipo ${GroupTypePtBr[group.type]}`);
-            throw new ConflictException(`Participante ${participant.name} já está em um grupo do tipo ${GroupTypePtBr[group.type]}`);
+        if (group.type !== GroupType.SPECIAL) {
+            const nonSpecialGroupsCount = participant.participantsGroup.filter(
+                pg => pg.group.type !== GroupType.SPECIAL
+            ).length;
+
+            this.logger.debug(`Quantidade de grupos (Principal/Adicional) que o participante já pertence: ${nonSpecialGroupsCount}`);
+            if (nonSpecialGroupsCount >= 2) {
+                this.logger.warn(`Participante ${participant.name} já atingiu o limite de 2 grupos (Principal/Adicional)`);
+                throw new ConflictException(`Participante ${participant.name} já atingiu o limite de 2 grupos (Principal/Adicional)`);
+            }
         }
 
         if (group.participantsGroup.length >= group.configMax) {
