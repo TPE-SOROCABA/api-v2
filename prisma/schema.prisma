@@ -66,7 +66,7 @@ model Auth {
   participantId     String    @unique @map("participant_id")
   expiredAt         DateTime? @map("expired_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
-
+  loginAttempts     Int        @default(0) @map("login_attempts")
   participant Participants @relation(fields: [participantId], references: [id])
 
   @@map("auths")
@@ -264,6 +264,14 @@ model Congregations {
 model firebase {
   id     Int  @id @unique @default(autoincrement())
   config Json
+}
+
+model SystemSettings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+  
+  @@map("system_settings")
 }
 
 enum ParticipantProfile {
