@@ -8,37 +8,13 @@ jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
-    environment: acceptance
-
     permissions:
+      packages: write
       contents: read
-
+      attestations: write
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
-
-      - name: Use Node.js 22.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22.x"
-          cache: "npm"
-
-      - name: Create env file
-        run: |
-          touch .env
-          echo DATABASE_URL=${{ secrets.DATABASE_URL }} >> .env
-          echo AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} >> .env
-          echo AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} >> .env
-          echo AWS_REGION=${{ secrets.AWS_REGION }} >> .env
-          echo CLOUDFRONT_PETITION_URL=${{ secrets.CLOUDFRONT_PETITION_URL }} >> .env
-          echo NODE_ENV=hmg >> .env
-          echo PORT=3000 >> .env
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check types and build
-        run: npm run build
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
@@ -50,11 +26,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: ${{ secrets.HMG_IMAGE_NAME || 'wfelipe2011/tpe-hmg' }}
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+          images: wfelipe2011/tpe-hmg
 
       - name: Build and push Docker image
         id: push
@@ -65,5 +37,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.HMG_IMAGE_NAME || 'wfelipe2011/tpe-hmg' }}:latest
-          cache-to: type=inline
