@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   tpe-hmg:
-    image: wfelipe2011/tpe-hmg:latest
+    image: wfelipe2011/tpe-hmg:hmg
     restart: on-failure
     container_name: api-tpe-hmg
     deploy:
