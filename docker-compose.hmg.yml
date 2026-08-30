@@ -1,0 +1,29 @@
+version: "3.5"
+
+services:
+  tpe-hmg:
+    image: wfelipe2011/tpe-hmg:latest
+    restart: on-failure
+    container_name: api-tpe-hmg
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 2G
+    env_file:
+      - .env.hmg
+    environment:
+      - NODE_ENV=hmg
+      - PORT=7000
+    ports:
+      - "7001:7000"
+    networks:
+      - npm_public
+
+volumes:
+  tpe-hmg:
+
+networks:
+  npm_public:
+    external: true

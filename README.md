@@ -71,3 +71,48 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
+## Ambientes
+
+| Branch   | Imagem Docker Hub                | Compose local         | CI / Deploy |
+|----------|----------------------------------|-----------------------|-------------|
+| `master` | `wfelipe2011/tpe-prod:master`    | `docker-compose.yml`  | `.github/workflows/ci.yml` (push em `master`) |
+| `hmg`    | `wfelipe2011/tpe-hmg:latest`     | `docker-compose.hmg.yml` | `.github/workflows/deploy.hmg.yml` (push em `hmg`, env `acceptance`) |
+| dev      | build local via `Dockerfile.dev` | `docker-compose.dev.yml` | manual (`npm run start:docker:dev`) |
+
+### Variáveis de ambiente
+
+Copie `.env.example` para `.env` (dev) ou `.env.hmg` (acceptance) e preencha os valores. Os arquivos `.env*` estão no `.gitignore`.
+
+```bash
+cp .env.example .env
+cp .env.example .env.hmg
+```
+
+### Rodar localmente
+
+```bash
+# dev (sem Docker)
+npm install
+npx prisma generate
+npm run start:dev
+
+# dev (com Docker)
+npm run start:docker:dev
+```
+
+### Subir a stack HMG no Portainer
+
+1. Garanta que o workflow `deploy.hmg.yml` rodou e publicou `wfelipe2011/tpe-hmg:latest`.
+2. No Portainer, **Stacks → Add stack**, cole o conteúdo de `docker-compose.hmg.yml`.
+3. Monte o arquivo `.env.hmg` no mesmo diretório da stack (ou injete as variáveis direto na UI).
+4. Confirme a porta **7001** exposta no host (a compose mapeia `7001:7000`).
+5. A rede `npm_public` precisa existir no host antes do deploy (`docker network create npm_public`).
+
+### Secrets necessários no GitHub (environment `acceptance`)
+
+- `DATABASE_URL`
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- `CLOUDFRONT_PETITION_URL`
+- `DOCKER_USERNAME`, `DOCKER_PASSWORD`
+- `HMG_IMAGE_NAME` (opcional; default `wfelipe2011/tpe-hmg`)
