@@ -19,3 +19,6 @@ dev-reset: ## Apaga volume do Postgres e refaz o setup
 
 dev-logs: ## Tail dos logs da API
 	docker compose -f docker-compose.dev.yml logs -f tpe-dev
+
+dev-token: ## Gera JWT válido para dev (uso: make dev-token, ou make dev-token ARGS="7d COORDINATOR")
+	@npm run dev:token -- $(ARGS)
