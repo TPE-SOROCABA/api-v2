@@ -6,6 +6,10 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "dev:setup": "bash scripts/dev-setup.sh",
+    "dev": "docker compose -f docker-compose.dev.yml up tpe-dev",
+    "dev:reset": "docker compose -f docker-compose.dev.yml down -v && npm run dev:setup",
+    "db:restore": "bash scripts/db-restore.sh",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "NODE_ENV=development CHOKIDAR_USEPOLLING=true nest start",

@@ -91,15 +91,44 @@ cp .env.example .env.hmg
 
 ### Rodar localmente
 
-```bash
-# dev (sem Docker)
-npm install
-npx prisma generate
-npm run start:dev
+**Setup completo em 3 comandos (Docker, recomendado):**
 
-# dev (com Docker)
-npm run start:docker:dev
+```bash
+git clone <repo>
+cd api-v2
+npm install
+npm run dev:setup    # primeira vez: cria .env, sobe Postgres, restaura dump HMG
+npm run dev          # sobe API em http://localhost:3000
 ```
+
+Atalho único:
+
+```bash
+make dev-full        # setup + start em foreground
+```
+
+**Outros comandos úteis:**
+
+```bash
+npm run dev:reset      # apaga volume do Postgres e refaz o setup
+npm run db:restore     # só restaura o dump (sem subir API)
+npm run start:dev      # modo host: app roda no Node local, exige psql instalado
+make dev-logs          # tail dos logs da API
+make dev-down          # para os containers
+```
+
+**Estrutura criada pelo setup:**
+
+- `db/dumps/hmg_latest.sql` — dump versionado (1 MB, dados de HMG)
+- `.env.dev.example` — template versionado; `.env` real é gitignored
+- `scripts/dev-setup.sh` — orquestra tudo
+- `scripts/db-restore.sh` — só o restore (idempotente)
+
+**Pré-requisitos:** Docker + Node 22. Nada mais (não precisa de psql no host).
+
+**Porta do Postgres:** mapeada como `5433` (host) → `5432` (container). O host 5432 já está ocupado por outro Postgres no ambiente. Para usar DBeaver/Prisma Studio, conecte em `localhost:5433`. Dentro do Docker, a API acessa via `postgres:5432` (service name), independente da porta do host.
+
+**Porta da API:** mapeada como `3001` (host) → `3000` (container). Acesse a API em http://localhost:3001 (não 3000).
 
 ### Subir a stack HMG no Portainer
 

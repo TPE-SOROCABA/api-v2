@@ -1,6 +1,24 @@
 version: '3.5'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pg-tpe-dev
+    environment:
+      POSTGRES_USER: tpe
+      POSTGRES_PASSWORD: tpe
+      POSTGRES_DB: tpedigital
+    ports:
+      # Host 5433 → Container 5432 (5432 do host já está em uso por outro Postgres)
+      - "5433:5432"
+    volumes:
+      - pgdata-tpe-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tpe -d tpedigital"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   tpe-dev:
     build:
       context: .
@@ -15,14 +33,21 @@ services:
           memory: 1G
     environment:
       - PORT=3000
-      - DATABASE_URL=$DATABASE_URL
-      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-      - AWS_REGION=$AWS_REGION
+      - DATABASE_URL=postgresql://tpe:tpe@postgres:5432/tpedigital?schema=public
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
       - NODE_ENV=dev
-      - CLOUDFRONT_PETITION_URL=$CLOUDFRONT_PETITION_URL
+      - CLOUDFRONT_PETITION_URL=${CLOUDFRONT_PETITION_URL:-}
       - TESSDATA_PREFIX=/usr/share/tessdata
     volumes:
       - ./src:/app/src
     ports:
-      - '3000:3000'
+      # Host 3001 → Container 3000 (3000 do host já está em uso por outro app)
+      - '3001:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata-tpe-dev:
