@@ -17,9 +17,10 @@ import { GroupsModule } from './modules/groups/groups.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { PointsModule } from './modules/points/points.module';
 import { DesignationsModule } from './modules/designations/designations.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule],
+  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule, IncidentsModule],
   controllers: [AppController],
   providers: [
     {
