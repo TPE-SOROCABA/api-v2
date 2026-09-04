@@ -18,9 +18,10 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { PointsModule } from './modules/points/points.module';
 import { DesignationsModule } from './modules/designations/designations.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
+import { WaitlistModule } from './modules/waitlist/waitlist.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule, IncidentsModule],
+  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule, IncidentsModule, WaitlistModule],
   controllers: [AppController],
   providers: [
     {
