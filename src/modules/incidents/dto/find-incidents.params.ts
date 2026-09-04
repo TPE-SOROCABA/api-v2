@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
 export class FindIncidentsParams {
   @IsOptional()
@@ -14,6 +14,14 @@ export class FindIncidentsParams {
   @IsOptional()
   @IsString({ message: 'participantId deve ser texto' })
   participantId?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'dateFrom deve ser yyyy-MM-dd' })
+  dateFrom?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'dateTo deve ser yyyy-MM-dd' })
+  dateTo?: string;
 
   @IsOptional()
   @Type(() => Number)

@@ -10,6 +10,21 @@ export interface IncidentsFilter {
   participantName?: string;
   /** filtro exato por participante (tem prioridade sobre participantName) */
   participantId?: string;
+  /** intervalo pela data da atividade (designationDate), 'yyyy-MM-dd' */
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+/**
+ * 'yyyy-MM-dd' -> Date no início/fim do dia. Usa `Z` de propósito: o Prisma
+ * trata a coluna `designation_date` (timestamp sem tz) como UTC, então
+ * comparar com um Date UTC-wall-clock casa com o `::timestamp` do SQL cru.
+ */
+function parseFrom(d?: string): Date | null {
+  return d ? new Date(`${d}T00:00:00.000Z`) : null;
+}
+function parseTo(d?: string): Date | null {
+  return d ? new Date(`${d}T23:59:59.999Z`) : null;
 }
 
 @Injectable()
@@ -19,10 +34,17 @@ export class IncidentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private buildWhere(filter: IncidentsFilter): Prisma.IncidentHistoriesWhereInput {
-    return {
-      ...(filter.groupIds && {
-        designation: { is: { groupId: { in: filter.groupIds } } },
+    const from = parseFrom(filter.dateFrom);
+    const to = parseTo(filter.dateTo);
+    const designationIs: Prisma.DesignationsWhereInput = {
+      ...(filter.groupIds && { groupId: { in: filter.groupIds } }),
+      ...((from || to) && {
+        designationDate: { ...(from && { gte: from }), ...(to && { lte: to }) },
       }),
+    };
+
+    return {
+      ...(Object.keys(designationIs).length > 0 && { designation: { is: designationIs } }),
       ...(filter.participantId
         ? { participantId: filter.participantId }
         : filter.participantName && {
@@ -80,6 +102,12 @@ export class IncidentsService {
   async summary(filter: IncidentsFilter) {
     const groupIds = filter.groupIds ?? null;
     const name = filter.participantName ?? null;
+    const from = filter.dateFrom ? `${filter.dateFrom} 00:00:00` : null;
+    const to = filter.dateTo ? `${filter.dateTo} 23:59:59.999` : null;
+
+    const dateWhere = `
+        AND ($3::timestamp IS NULL OR d.designation_date >= $3::timestamp)
+        AND ($4::timestamp IS NULL OR d.designation_date <= $4::timestamp)`;
 
     const byParticipant = await this.prisma.$queryRawUnsafe<{ participantId: string; name: string; count: number }[]>(
       `
@@ -88,12 +116,14 @@ export class IncidentsService {
       JOIN designations d ON d.id = ih.designation_id
       JOIN participants p ON p.id = ih.participant_id
       WHERE ($1::text[] IS NULL OR d.group_id = ANY($1::text[]))
-        AND ($2::text IS NULL OR p.name ILIKE '%' || $2 || '%')
+        AND ($2::text IS NULL OR p.name ILIKE '%' || $2 || '%')${dateWhere}
       GROUP BY p.id, p.name
       ORDER BY "count" DESC, p.name ASC
       `,
       groupIds,
       name,
+      from,
+      to,
     );
 
     const byGroup = await this.prisma.$queryRawUnsafe<{ groupId: string; name: string; count: number }[]>(
@@ -104,12 +134,14 @@ export class IncidentsService {
       JOIN groups g ON g.id = d.group_id
       JOIN participants p ON p.id = ih.participant_id
       WHERE ($1::text[] IS NULL OR d.group_id = ANY($1::text[]))
-        AND ($2::text IS NULL OR p.name ILIKE '%' || $2 || '%')
+        AND ($2::text IS NULL OR p.name ILIKE '%' || $2 || '%')${dateWhere}
       GROUP BY g.id, g.name
       ORDER BY "count" DESC, g.name ASC
       `,
       groupIds,
       name,
+      from,
+      to,
     );
 
     const total = byParticipant.reduce((sum, r) => sum + Number(r.count), 0);
@@ -126,16 +158,27 @@ export class IncidentsService {
    * independente do escopo do usuário — é um número agregado, não expõe dado
    * de grupo individual. `groups` já vem escopado (capitão só o(s) dele).
    */
-  async health(filter: { groupIds?: string[] }) {
-    const rows = await this.prisma.$queryRawUnsafe<{ groupId: string; name: string; incidents: number; designations: number }[]>(`
+  async health(filter: { groupIds?: string[]; dateFrom?: string; dateTo?: string }) {
+    const from = filter.dateFrom ? `${filter.dateFrom} 00:00:00` : null;
+    const to = filter.dateTo ? `${filter.dateTo} 23:59:59.999` : null;
+
+    // filtro de data vai no JOIN das designações: grupos sem designação no
+    // período continuam aparecendo (média null), como quando não há filtro.
+    const rows = await this.prisma.$queryRawUnsafe<{ groupId: string; name: string; incidents: number; designations: number }[]>(
+      `
       SELECT g.id AS "groupId", g.name AS "name",
         COUNT(DISTINCT ih.id)::int AS "incidents",
         COUNT(DISTINCT d.id)::int AS "designations"
       FROM groups g
       LEFT JOIN designations d ON d.group_id = g.id
+        AND ($1::timestamp IS NULL OR d.designation_date >= $1::timestamp)
+        AND ($2::timestamp IS NULL OR d.designation_date <= $2::timestamp)
       LEFT JOIN incident_histories ih ON ih.designation_id = d.id
       GROUP BY g.id, g.name
-    `);
+      `,
+      from,
+      to,
+    );
 
     const perGroup = rows.map((r) => ({
       groupId: r.groupId,

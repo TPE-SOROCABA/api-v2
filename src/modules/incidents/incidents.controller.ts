@@ -23,6 +23,8 @@ export class IncidentsController {
       groupIds,
       participantName: query.participantName,
       participantId: query.participantId,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
       page: query.page,
       pageSize: query.pageSize,
     });
@@ -34,6 +36,8 @@ export class IncidentsController {
     return this.incidentsService.summary({
       groupIds,
       participantName: query.participantName,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
     });
   }
 
@@ -41,6 +45,10 @@ export class IncidentsController {
   @Get('health')
   async health(@Request() req: AuthenticatedRequest, @Query() query: FindIncidentsParams) {
     const { groupIds } = await this.groupScope.resolveGroupFilter(req.user, query.groupId);
-    return this.incidentsService.health({ groupIds });
+    return this.incidentsService.health({
+      groupIds,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+    });
   }
 }
