@@ -55,14 +55,23 @@ export class GroupsParticipantsService {
         }
 
         if (group.type !== GroupType.SPECIAL) {
-            const nonSpecialGroupsCount = participant.participantsGroup.filter(
+            const nonSpecialGroups = participant.participantsGroup.filter(
                 pg => pg.group.type !== GroupType.SPECIAL
-            ).length;
+            );
 
-            this.logger.debug(`Quantidade de grupos (Principal/Adicional) que o participante já pertence: ${nonSpecialGroupsCount}`);
-            if (nonSpecialGroupsCount >= 2) {
+            this.logger.debug(`Quantidade de grupos (Principal/Adicional) que o participante já pertence: ${nonSpecialGroups.length}`);
+            if (nonSpecialGroups.length >= 2) {
                 this.logger.warn(`Participante ${participant.name} já atingiu o limite de 2 grupos (Principal/Adicional)`);
                 throw new ConflictException(`Participante ${participant.name} já atingiu o limite de 2 grupos (Principal/Adicional)`);
+            }
+
+            if (group.type === GroupType.MAIN) {
+                const alreadyInMainGroup = nonSpecialGroups.some(pg => pg.group.type === GroupType.MAIN);
+                this.logger.debug(`Participante já está em um grupo Centro: ${alreadyInMainGroup}`);
+                if (alreadyInMainGroup) {
+                    this.logger.warn(`Participante ${participant.name} já está em um grupo Centro e não pode entrar em outro`);
+                    throw new ConflictException(`Participante ${participant.name} já está em um grupo Centro e não pode entrar em outro grupo Centro`);
+                }
             }
         }
 
