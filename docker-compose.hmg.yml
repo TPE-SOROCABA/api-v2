@@ -1,0 +1,32 @@
+version: "3.5"
+
+services:
+  tpe-hmg:
+    image: wfelipe2011/tpe-hmg:hmg
+    restart: on-failure
+    container_name: api-tpe-hmg
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 2G
+    environment:
+      - PORT=7010
+      - DATABASE_URL=$DATABASE_URL
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+      - AWS_REGION=$AWS_REGION
+      - NODE_ENV=$NODE_ENV
+      - CLOUDFRONT_PETITION_URL=$CLOUDFRONT_PETITION_URL
+    ports:
+      - "7010:7010"
+    networks:
+      - npm_public
+
+volumes:
+  tpe-hmg:
+
+networks:
+  npm_public:
+    external: true

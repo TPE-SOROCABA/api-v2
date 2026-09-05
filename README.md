@@ -71,3 +71,77 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
+## Ambientes
+
+| Branch   | Imagem Docker Hub                | Compose local         | CI / Deploy |
+|----------|----------------------------------|-----------------------|-------------|
+| `master` | `wfelipe2011/tpe-prod:master`    | `docker-compose.yml`  | `.github/workflows/ci.yml` (push em `master`) |
+| `hmg`    | `wfelipe2011/tpe-hmg:latest`     | `docker-compose.hmg.yml` | `.github/workflows/deploy.hmg.yml` (push em `hmg`, env `acceptance`) |
+| dev      | build local via `Dockerfile.dev` | `docker-compose.dev.yml` | manual (`npm run start:docker:dev`) |
+
+### Variáveis de ambiente
+
+Copie `.env.example` para `.env` (dev) ou `.env.hmg` (acceptance) e preencha os valores. Os arquivos `.env*` estão no `.gitignore`.
+
+```bash
+cp .env.example .env
+cp .env.example .env.hmg
+```
+
+### Rodar localmente
+
+**Setup completo em 3 comandos (Docker, recomendado):**
+
+```bash
+git clone <repo>
+cd api-v2
+npm install
+npm run dev:setup    # primeira vez: cria .env, sobe Postgres, restaura dump HMG
+npm run dev          # sobe API em http://localhost:3000
+```
+
+Atalho único:
+
+```bash
+make dev-full        # setup + start em foreground
+```
+
+**Outros comandos úteis:**
+
+```bash
+npm run dev:reset      # apaga volume do Postgres e refaz o setup
+npm run db:restore     # só restaura o dump (sem subir API)
+npm run start:dev      # modo host: app roda no Node local, exige psql instalado
+make dev-logs          # tail dos logs da API
+make dev-down          # para os containers
+```
+
+**Estrutura criada pelo setup:**
+
+- `db/dumps/hmg_latest.sql` — dump versionado (1 MB, dados de HMG)
+- `.env.dev.example` — template versionado; `.env` real é gitignored
+- `scripts/dev-setup.sh` — orquestra tudo
+- `scripts/db-restore.sh` — só o restore (idempotente)
+
+**Pré-requisitos:** Docker + Node 22. Nada mais (não precisa de psql no host).
+
+**Porta do Postgres:** mapeada como `5433` (host) → `5432` (container). O host 5432 já está ocupado por outro Postgres no ambiente. Para usar DBeaver/Prisma Studio, conecte em `localhost:5433`. Dentro do Docker, a API acessa via `postgres:5432` (service name), independente da porta do host.
+
+**Porta da API:** mapeada como `3001` (host) → `3000` (container). Acesse a API em http://localhost:3001 (não 3000).
+
+### Subir a stack HMG no Portainer
+
+1. Garanta que o workflow `deploy.hmg.yml` rodou e publicou `wfelipe2011/tpe-hmg:latest`.
+2. No Portainer, **Stacks → Add stack**, cole o conteúdo de `docker-compose.hmg.yml`.
+3. Monte o arquivo `.env.hmg` no mesmo diretório da stack (ou injete as variáveis direto na UI).
+4. Confirme a porta **7001** exposta no host (a compose mapeia `7001:7000`).
+5. A rede `npm_public` precisa existir no host antes do deploy (`docker network create npm_public`).
+
+### Secrets necessários no GitHub (environment `acceptance`)
+
+- `DATABASE_URL`
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- `CLOUDFRONT_PETITION_URL`
+- `DOCKER_USERNAME`, `DOCKER_PASSWORD`
+- `HMG_IMAGE_NAME` (opcional; default `wfelipe2011/tpe-hmg`)

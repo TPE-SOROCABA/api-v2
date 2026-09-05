@@ -33,7 +33,8 @@ export class AuthGuard implements CanActivate {
 
   validateToken(token: string): JwtPayload {
     try {
-      const payload = jwt.verify(token, 'tpe-sorocaba') as JwtPayload;
+      const secret = process.env.JWT_SECRET || 'tpe-sorocaba';
+      const payload = jwt.verify(token, secret) as JwtPayload;
       return payload;
     } catch (error) {
       this.logger.error(`Token inválido: ${error.message} - Token: ${token}`);
