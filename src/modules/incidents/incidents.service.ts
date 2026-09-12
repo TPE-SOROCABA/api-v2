@@ -36,7 +36,11 @@ export class IncidentsService {
   private buildWhere(filter: IncidentsFilter): Prisma.IncidentHistoriesWhereInput {
     const from = parseFrom(filter.dateFrom);
     const to = parseTo(filter.dateTo);
+    // mandatoryPresence: false => capitão marcou a semana como "Presença Opcional".
+    // Faltas dessa designação não devem contar no Painel de Faltas (sempre aplicado,
+    // mesmo sem outros filtros de grupo/data).
     const designationIs: Prisma.DesignationsWhereInput = {
+      mandatoryPresence: true,
       ...(filter.groupIds && { groupId: { in: filter.groupIds } }),
       ...((from || to) && {
         designationDate: { ...(from && { gte: from }), ...(to && { lte: to }) },
@@ -44,7 +48,7 @@ export class IncidentsService {
     };
 
     return {
-      ...(Object.keys(designationIs).length > 0 && { designation: { is: designationIs } }),
+      designation: { is: designationIs },
       ...(filter.participantId
         ? { participantId: filter.participantId }
         : filter.participantName && {
@@ -105,7 +109,9 @@ export class IncidentsService {
     const from = filter.dateFrom ? `${filter.dateFrom} 00:00:00` : null;
     const to = filter.dateTo ? `${filter.dateTo} 23:59:59.999` : null;
 
+    // d.mandatory_presence = true: exclui faltas de designações marcadas "Presença Opcional".
     const dateWhere = `
+        AND d.mandatory_presence = true
         AND ($3::timestamp IS NULL OR d.designation_date >= $3::timestamp)
         AND ($4::timestamp IS NULL OR d.designation_date <= $4::timestamp)`;
 
@@ -173,7 +179,9 @@ export class IncidentsService {
       LEFT JOIN designations d ON d.group_id = g.id
         AND ($1::timestamp IS NULL OR d.designation_date >= $1::timestamp)
         AND ($2::timestamp IS NULL OR d.designation_date <= $2::timestamp)
-      LEFT JOIN incident_histories ih ON ih.designation_id = d.id
+      -- "dias trabalhados" (designations) conta normalmente mesmo em semana opcional;
+      -- só a FALTA (numerador) de uma designação "Presença Opcional" não entra na média.
+      LEFT JOIN incident_histories ih ON ih.designation_id = d.id AND d.mandatory_presence = true
       GROUP BY g.id, g.name
       `,
       from,
