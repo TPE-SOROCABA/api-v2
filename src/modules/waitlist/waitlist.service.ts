@@ -12,7 +12,7 @@ export interface AvailabilityItem {
   evening: boolean;
 }
 
-const WEEKDAY_NUM: Record<Weekday, number> = {
+export const WEEKDAY_NUM: Record<Weekday, number> = {
   SUNDAY: 0,
   MONDAY: 1,
   TUESDAY: 2,
@@ -28,7 +28,7 @@ const WEEKDAY_ORDER: Weekday[] = [Weekday.SUNDAY, Weekday.MONDAY, Weekday.TUESDA
 // 1 grupo, respeitando a regra de composição = ACTIVE, pode pegar um 2º)
 const PLACEABLE_STATUSES: PetitionStatus[] = [PetitionStatus.WAITING, PetitionStatus.WAITING_INFORMATION, PetitionStatus.ACTIVE];
 
-function periodOf(configStartHour: string): Period {
+export function periodOf(configStartHour: string): Period {
   const hour = parseInt(configStartHour.split(':')[0], 10);
   if (hour < 12) return 'morning';
   if (hour < 18) return 'afternoon';

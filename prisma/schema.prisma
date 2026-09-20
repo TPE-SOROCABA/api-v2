@@ -388,3 +388,31 @@ enum CivilStatus {
   DIVORCED
   WIDOWED
 }
+
+// Pedido de troca de grupo ("quer trocar"). A pessoa CONTINUA nos grupos atuais; o pedido só registra
+// em que dia/horário ela quer ir se abrir vaga (e por quê). Sem FK, como a auditoria: o histórico
+// sobrevive mesmo que a pessoa ou o grupo sejam apagados (por isso guarda os nomes na hora).
+// status: OPEN | DONE | CANCELLED · resolution: MOVED | ADDED | CANCELLED | LEFT
+model GroupChangeRequests {
+  id                String    @id @default(uuid())
+  participantId     String    @map("participant_id")
+  participantName   String    @map("participant_name")
+  // [{ weekDay: 0-6 (0 = domingo), period: "morning" | "afternoon" | "evening" }]
+  desiredSlots      Json      @map("desired_slots")
+  reason            String
+  note              String?
+  status            String    @default("OPEN")
+  requestedById     String?   @map("requested_by_id")
+  requestedByName   String?   @map("requested_by_name")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  resolvedAt        DateTime? @map("resolved_at")
+  resolvedById      String?   @map("resolved_by_id")
+  resolvedByName    String?   @map("resolved_by_name")
+  resolution        String?
+  resolvedGroupId   String?   @map("resolved_group_id")
+  resolvedGroupName String?   @map("resolved_group_name")
+
+  @@index([status])
+  @@index([participantId])
+  @@map("group_change_requests")
+}

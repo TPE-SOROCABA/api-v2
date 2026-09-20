@@ -3,12 +3,17 @@ import { GroupType, ParticipantSex, PetitionStatus } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { UpdateGroupParticipanteProfileDto } from './dto/update-group-participante-profile.dto';
 import { AuditAction, AuditService } from '../audit/audit.service';
+import { GroupChangeRequestsService } from '../group-change-requests/group-change-requests.service';
 import { JwtPayload } from 'src/shared/types';
 
 @Injectable()
 export class GroupsParticipantsService {
     logger = new Logger(GroupsParticipantsService.name);
-    constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly audit: AuditService,
+        private readonly changeRequests: GroupChangeRequestsService,
+    ) { }
 
     async findAllParticipants(id: string) {
         this.logger.debug(`Iniciando busca de todos os participantes do grupo com ID ${id}`);
@@ -90,6 +95,8 @@ export class GroupsParticipantsService {
             entityName: participant.name,
             metadata: { groupId: group.id, groupName: group.name, groupType: group.type },
         });
+        // se ele tinha pedido de troca e entrou justo no dia/horário que queria, o pedido foi atendido
+        await this.changeRequests.resolveIfMatchesGroup(participant.id, group, actor);
         return {
             message: `Participante ${participant.name} atribuido ao grupo ${group.name}`
         };
@@ -140,6 +147,10 @@ export class GroupsParticipantsService {
             entityName: participant.name,
             metadata: { groupId: group.id, groupName: group.name, groupType: group.type },
         });
+        // saiu do último grupo: volta pra Lista de Espera comum, o pedido de troca não faz mais sentido
+        if (participantGroups.length === 0) {
+            await this.changeRequests.resolveOpen(participant.id, 'LEFT', { actor });
+        }
         return {
             message: `Participante ${participant.name} removido do grupo ${group.name}`
         };
@@ -256,6 +267,7 @@ export class GroupsParticipantsService {
             entityName: participant.name,
             metadata: { fromGroupId, fromGroupName: fromGroup.name, toGroupId: toGroup.id, toGroupName: toGroup.name },
         });
+        await this.changeRequests.resolveOpen(participant.id, 'MOVED', { group: toGroup, actor });
         return { message: `Participante ${participant.name} trocado de ${fromGroup.name} para ${toGroup.name}` };
     }
 
