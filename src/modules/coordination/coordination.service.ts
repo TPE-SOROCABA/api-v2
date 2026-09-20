@@ -23,6 +23,14 @@ export interface OverviewAlert {
   items: string[];
 }
 
+const WEEKDAY_SHORT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const PERIOD_PT: Record<string, string> = { morning: 'manhã', afternoon: 'tarde', evening: 'noite' };
+
+/** "qua manhã, sex tarde" */
+function slotsLabel(slots: { weekDay: number; period: string }[]): string {
+  return slots.map((s) => `${WEEKDAY_SHORT[s.weekDay] ?? '?'} ${PERIOD_PT[s.period] ?? s.period}`).join(', ');
+}
+
 function daysAgo(days: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -41,6 +49,15 @@ export class CoordinationService {
     private readonly prisma: PrismaService,
     private readonly waitlistService: WaitlistService,
   ) {}
+
+  /** Pedidos de troca em aberto. Se a tabela ainda não existe neste ambiente, o resto da visão geral segue normal. */
+  private async loadChangeRequests() {
+    try {
+      return await this.prisma.groupChangeRequests.findMany({ where: { status: 'OPEN' }, orderBy: { createdAt: 'asc' } });
+    } catch {
+      return [];
+    }
+  }
 
   /**
    * Visão do TPE inteiro para o coordenador: números gerais + alertas acionáveis.
@@ -174,10 +191,13 @@ export class CoordinationService {
     let oldestWaitingSince: Date | null = null;
     for (const g of waitlist.groups) {
       for (const c of g.candidates) {
+        if (c.viaSwapOnly) continue; // já tem grupo: não é "espera" comum
         (g.type === GroupType.MAIN ? inMain : inAdditional).add(c.participantId);
         if (!oldestWaitingSince || c.waitingSince < oldestWaitingSince) oldestWaitingSince = c.waitingSince;
       }
     }
+
+    const changeRequests = await this.loadChangeRequests();
 
     // ---- alertas (só os que têm algo a resolver) ---------------------------------------
     const alerts: OverviewAlert[] = [
@@ -207,6 +227,15 @@ export class CoordinationService {
         count: withVacancies.length,
         href: '/lista-espera',
         items: sample(withVacancies.map((v) => v.label)),
+      },
+      {
+        key: 'change-requests',
+        level: 'medium' as AlertLevel,
+        title: 'Voluntários querendo trocar de grupo',
+        description: 'Continuam nos grupos atuais; veja na Lista de Espera quem pode ir pro dia e horário que pediu.',
+        count: changeRequests.length,
+        href: '/lista-espera',
+        items: sample(changeRequests.map((r) => `${r.participantName} — ${slotsLabel(r.desiredSlots as unknown as { weekDay: number; period: string }[])}`)),
       },
       {
         key: 'groups-without-assistant',
@@ -279,6 +308,7 @@ export class CoordinationService {
         inMainGroups: inMain.size,
         inAdditionalGroups: inAdditional.size,
         groupsWithVacancies: waitlist.summary.groupsNeedingHelp,
+        wantingChange: changeRequests.length,
         oldestWaitingSince,
       },
       incidents: { total: incidentsTotal, last30Days: incidentsRecent },
