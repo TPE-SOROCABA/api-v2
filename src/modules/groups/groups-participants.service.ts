@@ -56,26 +56,7 @@ export class GroupsParticipantsService {
             throw new ConflictException(`Participante ${participant.name} já está no grupo ${group.name}`);
         }
 
-        if (group.type !== GroupType.SPECIAL) {
-            const nonSpecialGroups = participant.participantsGroup.filter(
-                pg => pg.group.type !== GroupType.SPECIAL
-            );
-
-            this.logger.debug(`Quantidade de grupos (Principal/Adicional) que o participante já pertence: ${nonSpecialGroups.length}`);
-            if (nonSpecialGroups.length >= 2) {
-                this.logger.warn(`Participante ${participant.name} já atingiu o limite de 2 grupos (Principal/Adicional)`);
-                throw new ConflictException(`Participante ${participant.name} já atingiu o limite de 2 grupos (Principal/Adicional)`);
-            }
-
-            if (group.type === GroupType.MAIN) {
-                const alreadyInMainGroup = nonSpecialGroups.some(pg => pg.group.type === GroupType.MAIN);
-                this.logger.debug(`Participante já está em um grupo Centro: ${alreadyInMainGroup}`);
-                if (alreadyInMainGroup) {
-                    this.logger.warn(`Participante ${participant.name} já está em um grupo Centro e não pode entrar em outro`);
-                    throw new ConflictException(`Participante ${participant.name} já está em um grupo Centro e não pode entrar em outro grupo Centro`);
-                }
-            }
-        }
+        this.assertGroupComposition(group, participant.participantsGroup.map(pg => pg.group), participant.name);
 
         if (group.participantsGroup.length >= group.configMax) {
             this.logger.warn(`Grupo ${group.name} já atingiu o limite de participantes`);
@@ -211,6 +192,71 @@ export class GroupsParticipantsService {
         return {
             message: `Perfil do participante ${groupParticipant.participant.name} atualizado para ${profile} no grupo ${groupParticipant.group.name}`
         };
+    }
+
+    /**
+     * Regra de composição: no máximo 2 grupos (Centro/Adicional), sendo no máximo 1 do Centro
+     * (1 Centro + 1 Adicional, ou 2 Adicionais). Grupo Especial não conta. `currentGroups` são os
+     * grupos que a pessoa terá ANTES de entrar em `group`.
+     */
+    private assertGroupComposition(group: { type: GroupType }, currentGroups: { type: GroupType }[], participantName: string) {
+        if (group.type === GroupType.SPECIAL) return;
+
+        const nonSpecialGroups = currentGroups.filter(g => g.type !== GroupType.SPECIAL);
+        this.logger.debug(`Quantidade de grupos (Principal/Adicional) que o participante já pertence: ${nonSpecialGroups.length}`);
+        if (nonSpecialGroups.length >= 2) {
+            this.logger.warn(`Participante ${participantName} já atingiu o limite de 2 grupos (Principal/Adicional)`);
+            throw new ConflictException(`Participante ${participantName} já atingiu o limite de 2 grupos (Principal/Adicional)`);
+        }
+
+        if (group.type === GroupType.MAIN && nonSpecialGroups.some(g => g.type === GroupType.MAIN)) {
+            this.logger.warn(`Participante ${participantName} já está em um grupo Centro e não pode entrar em outro`);
+            throw new ConflictException(`Participante ${participantName} já está em um grupo Centro e não pode entrar em outro grupo Centro`);
+        }
+    }
+
+    /**
+     * Troca de grupo numa operação só: sai de `fromGroupId` e entra em `toGroupId`. Tudo é validado
+     * ANTES (composição calculada sobre o que sobra depois de sair, vaga no destino), e a saída + a
+     * entrada rodam numa transação: ou acontecem as duas, ou nenhuma (a pessoa nunca fica sem grupo).
+     */
+    async transferParticipant(fromGroupId: string, toGroupId: string, participantId: string, actor?: JwtPayload) {
+        if (fromGroupId === toGroupId) {
+            throw new BadRequestException('O grupo de origem e o de destino são o mesmo');
+        }
+        const { group: toGroup, participant } = await this.getGroupAndParticipant(toGroupId, participantId);
+
+        const fromMembership = participant.participantsGroup.find(pg => pg.groupId === fromGroupId);
+        if (!fromMembership) {
+            throw new NotFoundException(`Participante ${participant.name} não está no grupo de origem`);
+        }
+        if (toGroup.participantsGroup.some(pg => pg.participantId === participant.id)) {
+            throw new ConflictException(`Participante ${participant.name} já está no grupo ${toGroup.name}`);
+        }
+
+        const remainingGroups = participant.participantsGroup.filter(pg => pg.groupId !== fromGroupId).map(pg => pg.group);
+        this.assertGroupComposition(toGroup, remainingGroups, participant.name);
+
+        if (toGroup.participantsGroup.length >= toGroup.configMax) {
+            throw new ConflictException(`Grupo ${toGroup.name} já atingiu o limite de participantes`);
+        }
+
+        await this.prisma.$transaction([
+            this.prisma.participantsGroups.deleteMany({ where: { groupId: fromGroupId, participantId: participant.id } }),
+            this.prisma.participantsGroups.create({ data: { groupId: toGroup.id, participantId: participant.id } }),
+        ]);
+
+        const fromGroup = fromMembership.group;
+        this.logger.log(`Participante ${participant.name} trocado do grupo ${fromGroup.name} para ${toGroup.name}`);
+        await this.audit.log({
+            actor,
+            action: AuditAction.GROUP_TRANSFER,
+            entity: 'participant',
+            entityId: participant.id,
+            entityName: participant.name,
+            metadata: { fromGroupId, fromGroupName: fromGroup.name, toGroupId: toGroup.id, toGroupName: toGroup.name },
+        });
+        return { message: `Participante ${participant.name} trocado de ${fromGroup.name} para ${toGroup.name}` };
     }
 
     private async getGroupAndParticipant(groupId: string, participantId: string) {
