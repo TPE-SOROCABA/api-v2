@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
+import { RolesGuard } from './shared/roles.guard';
 import { PetitionsModule } from './modules/petitions/petitions.module';
 import { ParticipantsModule } from './modules/participants/participants.module';
 import { LoggingTimeMiddleware } from './middleware/logging-time.middleware';
@@ -28,6 +29,11 @@ import { DesignationInsightsModule } from './modules/designation-insights/design
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    // depois do AuthGuard (que popula request.user): só age em rota com @Roles()
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
     {
       provide: APP_INTERCEPTOR,
