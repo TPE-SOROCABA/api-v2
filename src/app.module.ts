@@ -22,9 +22,10 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
 import { WaitlistModule } from './modules/waitlist/waitlist.module';
 import { DesignationInsightsModule } from './modules/designation-insights/designation-insights.module';
 import { CoordinationModule } from './modules/coordination/coordination.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule, IncidentsModule, WaitlistModule, DesignationInsightsModule, CoordinationModule],
+  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule, IncidentsModule, WaitlistModule, DesignationInsightsModule, CoordinationModule, AuditModule],
   controllers: [AppController],
   providers: [
     {

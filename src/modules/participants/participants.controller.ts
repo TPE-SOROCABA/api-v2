@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Put, Param, Patch, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Patch, UseInterceptors, UploadedFile, Query, Request } from '@nestjs/common';
+import { AuthenticatedRequest } from 'src/shared/types';
 import { ParticipantsService } from './participants.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { UpdateParticipantDto } from './dto/update-participant.dto';
@@ -48,8 +49,8 @@ export class ParticipantsController {
   // usa PATCH /coordination/people/:id/profile, com auditoria.
   @Roles('COORDINATOR')
   @Patch('toggle-admin/:userId')
-  toggleAdminAnalyst(@Param('userId') userId: string) {
-    return this.participantsService.toggleAdminAnalyst(userId);
+  toggleAdminAnalyst(@Request() req: AuthenticatedRequest, @Param('userId') userId: string) {
+    return this.participantsService.toggleAdminAnalyst(userId, req.user);
   }
 
   @Post(':id/photo')

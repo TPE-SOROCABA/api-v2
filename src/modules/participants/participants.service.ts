@@ -9,11 +9,13 @@ import * as fs from 'fs';
 import { FindAllParticipantParams } from './dto/find-all-participants.params';
 import { FirebaseService } from 'src/infra/firebase.service';
 import { v4 as uuidv4 } from 'uuid';
+import { AuditAction, AuditService } from '../audit/audit.service';
+import { JwtPayload } from 'src/shared/types';
 
 @Injectable()
 export class ParticipantsService {
   logger = new TransactionLogger(ParticipantsService.name);
-  constructor(private prisma: PrismaService, private readonly firebaseService: FirebaseService) { }
+  constructor(private prisma: PrismaService, private readonly firebaseService: FirebaseService, private readonly audit: AuditService) { }
 
   async create(createParticipantDto: CreateParticipantDto) {
     const participant = Participant.build(createParticipantDto);
@@ -173,7 +175,7 @@ export class ParticipantsService {
     }
   }
 
-  async toggleAdminAnalyst(userId: string) {
+  async toggleAdminAnalyst(userId: string, actor?: JwtPayload) {
     console.log('userId', userId);
     const participant = await this.prisma.participants.findUnique({
       where: { id: userId },
@@ -185,10 +187,19 @@ export class ParticipantsService {
 
     const profile = participant.profile === ParticipantProfile.COORDINATOR ? ParticipantProfile.ADMIN_ANALYST : ParticipantProfile.COORDINATOR;
     this.logger.log(`Alterando perfil do participante: ${userId} para ${profile}`);
-    return this.prisma.participants.update({
+    const updated = await this.prisma.participants.update({
       where: { id: userId },
       data: { profile },
     });
+    await this.audit.log({
+      actor,
+      action: AuditAction.PROFILE_CHANGE,
+      entity: 'participant',
+      entityId: participant.id,
+      entityName: participant.name,
+      metadata: { from: participant.profile, to: profile, via: 'toggle-admin' },
+    });
+    return updated;
   }
 
   async uploadPhoto(id: string, file: Express.Multer.File) {

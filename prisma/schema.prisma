@@ -283,6 +283,26 @@ model ShortLink {
   @@map("short_links")
 }
 
+// Registro de ações sensíveis feitas pelo sistema (data, ação, quem, alvo).
+// Sem FK de propósito: o histórico sobrevive mesmo se o participante/grupo for apagado,
+// por isso guarda também o nome de quem agiu e do alvo no momento da ação.
+model AuditLogs {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now()) @map("created_at")
+  actorId    String?  @map("actor_id")
+  actorName  String?  @map("actor_name")
+  action     String
+  entity     String
+  entityId   String?  @map("entity_id")
+  entityName String?  @map("entity_name")
+  metadata   Json?
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
 enum ParticipantProfile {
   COORDINATOR
   ASSISTANT_COORDINATOR

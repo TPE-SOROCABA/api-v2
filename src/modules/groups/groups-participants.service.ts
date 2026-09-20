@@ -2,11 +2,13 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { GroupType, ParticipantSex, PetitionStatus } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { UpdateGroupParticipanteProfileDto } from './dto/update-group-participante-profile.dto';
+import { AuditAction, AuditService } from '../audit/audit.service';
+import { JwtPayload } from 'src/shared/types';
 
 @Injectable()
 export class GroupsParticipantsService {
     logger = new Logger(GroupsParticipantsService.name);
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
 
     async findAllParticipants(id: string) {
         this.logger.debug(`Iniciando busca de todos os participantes do grupo com ID ${id}`);
@@ -42,7 +44,7 @@ export class GroupsParticipantsService {
         };
     }
 
-    async updateParticipantGroup(groupId: string, participantId: string) {
+    async updateParticipantGroup(groupId: string, participantId: string, actor?: JwtPayload) {
         this.logger.debug(`Iniciando atualização do grupo ${groupId} com participante ${participantId}`);
         const { group, participant } = await this.getGroupAndParticipant(groupId, participantId);
         this.logger.debug(`Grupo e participante carregados: ${JSON.stringify(group)}, ${JSON.stringify(participant)}`);
@@ -99,12 +101,20 @@ export class GroupsParticipantsService {
         }
 
         this.logger.log(`Participante ${participant.name} atribuído ao grupo ${group.name}`);
+        await this.audit.log({
+            actor,
+            action: AuditAction.GROUP_JOIN,
+            entity: 'participant',
+            entityId: participant.id,
+            entityName: participant.name,
+            metadata: { groupId: group.id, groupName: group.name, groupType: group.type },
+        });
         return {
             message: `Participante ${participant.name} atribuido ao grupo ${group.name}`
         };
     }
 
-    async removeParticipantGroup(groupId: string, participantId: string) {
+    async removeParticipantGroup(groupId: string, participantId: string, actor?: JwtPayload) {
         this.logger.debug(`Iniciando remoção do participante ${participantId} do grupo ${groupId}`);
         const { group, participant } = await this.getGroupAndParticipant(groupId, participantId);
         this.logger.debug(`Grupo e participante carregados: ${JSON.stringify(group)}, ${JSON.stringify(participant)}`);
@@ -141,12 +151,20 @@ export class GroupsParticipantsService {
         }
 
         this.logger.log(`Participante ${participant.name} removido do grupo ${group.name}`);
+        await this.audit.log({
+            actor,
+            action: AuditAction.GROUP_LEAVE,
+            entity: 'participant',
+            entityId: participant.id,
+            entityName: participant.name,
+            metadata: { groupId: group.id, groupName: group.name, groupType: group.type },
+        });
         return {
             message: `Participante ${participant.name} removido do grupo ${group.name}`
         };
     }
 
-    async updateParticipantGroupProfile(groupId: string, participantId: string, { profile }: UpdateGroupParticipanteProfileDto) {
+    async updateParticipantGroupProfile(groupId: string, participantId: string, { profile }: UpdateGroupParticipanteProfileDto, actor?: JwtPayload) {
         this.logger.debug(`Iniciando atualização do perfil do participante ${participantId} no grupo ${groupId}`);
         const groupParticipant = await this.prisma.participantsGroups.findFirst({
             where: {
@@ -171,6 +189,7 @@ export class GroupsParticipantsService {
         }
 
         this.logger.debug(`Atualizando perfil do participante no banco de dados`);
+        const previousProfile = groupParticipant.profile;
         await this.prisma.participantsGroups.update({
             where: {
                 id: groupParticipant.id
@@ -181,6 +200,14 @@ export class GroupsParticipantsService {
         });
 
         this.logger.log(`Perfil do participante ${groupParticipant.participant.name} atualizado para ${profile} no grupo ${groupParticipant.group.name}`);
+        await this.audit.log({
+            actor,
+            action: AuditAction.GROUP_ROLE_CHANGE,
+            entity: 'participant',
+            entityId: groupParticipant.participant.id,
+            entityName: groupParticipant.participant.name,
+            metadata: { groupId: groupParticipant.group.id, groupName: groupParticipant.group.name, from: previousProfile, to: profile },
+        });
         return {
             message: `Perfil do participante ${groupParticipant.participant.name} atualizado para ${profile} no grupo ${groupParticipant.group.name}`
         };
