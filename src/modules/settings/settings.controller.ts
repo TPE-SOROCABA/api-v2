@@ -18,4 +18,10 @@ export class SettingsController {
   waitlistWhatsapp() {
     return this.settingsService.getWaitlistWhatsapp();
   }
+
+  // o front lê no carregamento pra saber o que cada perfil vê no menu
+  @Get('menu-permissions')
+  menuPermissions() {
+    return this.settingsService.getMenuPermissions();
+  }
 }

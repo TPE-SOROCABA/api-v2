@@ -3,8 +3,8 @@ import { Roles } from 'src/shared/roles.decorator';
 import { AuthenticatedRequest } from 'src/shared/types';
 import { AuditAction, AuditService } from '../audit/audit.service';
 import { FindAuditParams } from '../audit/dto/find-audit.params';
-import { SETTING_KEYS, SettingsService } from '../settings/settings.service';
-import { FindPeopleParams, UpdateAnnouncementDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
+import { MENU_PROFILES, MENU_SETTING_KEY, SETTING_KEYS, SettingsService } from '../settings/settings.service';
+import { FindPeopleParams, UpdateAnnouncementDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
 import { CoordinationService } from './coordination.service';
 import { PeopleService } from './people.service';
 
@@ -71,6 +71,35 @@ export class CoordinationController {
   async resetWaitlistWhatsapp(@Request() req: AuthenticatedRequest) {
     const result = await this.settingsService.resetWaitlistWhatsapp();
     await this.auditSetting(req, SETTING_KEYS.WAITLIST_WHATSAPP, 'Mensagem de WhatsApp da Lista de Espera', 'Voltou ao modelo padrão');
+    return result;
+  }
+
+  @Put('settings/menu-permissions')
+  async updateMenuPermissions(@Request() req: AuthenticatedRequest, @Body() body: UpdateMenuPermissionsDto) {
+    const before = (await this.settingsService.getMenuPermissions()).permissions;
+    const result = await this.settingsService.setMenuPermissions(body.permissions);
+    // o que mudou por perfil (telas liberadas / escondidas), pra aparecer no histórico
+    const changes: Record<string, { added: string[]; removed: string[] }> = {};
+    for (const profile of MENU_PROFILES) {
+      const added = result.permissions[profile].filter((p) => !before[profile].includes(p));
+      const removed = before[profile].filter((p) => !result.permissions[profile].includes(p));
+      if (added.length || removed.length) changes[profile] = { added, removed };
+    }
+    await this.auditService.log({
+      actor: req.user,
+      action: AuditAction.PERMISSIONS_CHANGE,
+      entity: 'setting',
+      entityId: MENU_SETTING_KEY,
+      entityName: 'Menu por perfil',
+      metadata: { key: MENU_SETTING_KEY, changes },
+    });
+    return result;
+  }
+
+  @Delete('settings/menu-permissions')
+  async resetMenuPermissions(@Request() req: AuthenticatedRequest) {
+    const result = await this.settingsService.resetMenuPermissions();
+    await this.auditSetting(req, MENU_SETTING_KEY, 'Menu por perfil', 'Voltou ao padrão');
     return result;
   }
 

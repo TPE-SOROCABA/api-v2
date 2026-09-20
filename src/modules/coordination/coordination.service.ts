@@ -263,7 +263,6 @@ export class CoordinationService {
       },
       roles: {
         coordinators: countProfile(ParticipantProfile.COORDINATOR),
-        assistantCoordinators: countProfile(ParticipantProfile.ASSISTANT_COORDINATOR),
         adminAnalysts: countProfile(ParticipantProfile.ADMIN_ANALYST),
         captains: captainIds.size,
         assistantCaptains: assistantCaptainIds.size,

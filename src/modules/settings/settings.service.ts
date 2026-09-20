@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 
 /** Chaves usadas em `system_settings` (tabela chave/valor que já existia). */
@@ -57,9 +57,82 @@ export class SettingsService {
     return this.getWaitlistWhatsapp();
   }
 
+  async getMenuPermissions(): Promise<{ permissions: MenuPermissions; isDefault: boolean }> {
+    const row = await this.prisma.systemSettings.findUnique({ where: { key: MENU_SETTING_KEY } });
+    if (!row) return { permissions: DEFAULT_MENU_PERMISSIONS, isDefault: true };
+    try {
+      const saved = JSON.parse(row.value) as Partial<MenuPermissions>;
+      const permissions = {} as MenuPermissions;
+      for (const profile of MENU_PROFILES) {
+        const list = Array.isArray(saved[profile]) ? saved[profile]!.filter((p) => (MENU_PATHS as readonly string[]).includes(p)) : DEFAULT_MENU_PERMISSIONS[profile];
+        permissions[profile] = list.includes(MENU_ALWAYS_ON) ? list : [MENU_ALWAYS_ON, ...list];
+      }
+      return { permissions, isDefault: false };
+    } catch {
+      return { permissions: DEFAULT_MENU_PERMISSIONS, isDefault: true };
+    }
+  }
+
+  async setMenuPermissions(input: Record<string, unknown>) {
+    const clean = {} as MenuPermissions;
+    for (const profile of MENU_PROFILES) {
+      const list = input?.[profile];
+      if (!Array.isArray(list) || list.some((p) => typeof p !== 'string')) {
+        throw new BadRequestException(`Envie a lista de telas de ${profile}`);
+      }
+      const unknown = (list as string[]).filter((p) => !(MENU_PATHS as readonly string[]).includes(p));
+      if (unknown.length) throw new BadRequestException(`Tela não permitida para ${profile}: ${unknown.join(', ')}`);
+      if (!list.includes(MENU_ALWAYS_ON)) throw new BadRequestException(`O Dashboard precisa continuar liberado para ${profile}`);
+      clean[profile] = [...new Set(list as string[])];
+    }
+    const extra = Object.keys(input ?? {}).filter((k) => !(MENU_PROFILES as readonly string[]).includes(k));
+    if (extra.length) throw new BadRequestException(`Perfil não configurável: ${extra.join(', ')}`);
+
+    const value = JSON.stringify(clean);
+    await this.prisma.systemSettings.upsert({
+      where: { key: MENU_SETTING_KEY },
+      create: { key: MENU_SETTING_KEY, value },
+      update: { value },
+    });
+    return this.getMenuPermissions();
+  }
+
+  async resetMenuPermissions() {
+    await this.prisma.systemSettings.deleteMany({ where: { key: MENU_SETTING_KEY } });
+    return this.getMenuPermissions();
+  }
+
   /** Volta ao modelo padrão (apaga a customização). */
   async resetWaitlistWhatsapp() {
     await this.prisma.systemSettings.deleteMany({ where: { key: SETTING_KEYS.WAITLIST_WHATSAPP } });
     return this.getWaitlistWhatsapp();
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Menu por perfil: quais telas cada perfil enxerga. É visibilidade de menu/tela no front, não uma
+// trava de segurança das rotas da API.
+// ---------------------------------------------------------------------------------------------
+
+/** Perfis que chegam no token (o login da legacy só emite estes; o Coordenador sempre vê tudo). */
+export const MENU_PROFILES = ['ADMIN_ANALYST', 'CAPTAIN', 'ASSISTANT_CAPTAIN'] as const;
+export type MenuProfile = (typeof MENU_PROFILES)[number];
+export type MenuPermissions = Record<MenuProfile, string[]>;
+
+/**
+ * Telas que o coordenador pode liberar/esconder. "Lista de Espera" e "Coordenação" ficam de fora
+ * (só coordenador: as rotas delas exigem COORDINATOR no servidor).
+ */
+export const MENU_PATHS = ['/dashboard', '/dashboard/lista-atencao', '/consultar/historico', '/lista-designacao', '/peticoes', '/grupos', '/pontos'] as const;
+
+/** Página inicial de todo mundo: não pode sumir, senão o redirecionamento de acesso negado não teria pra onde ir. */
+export const MENU_ALWAYS_ON = '/dashboard';
+
+// espelha o padrão de admin-tpe/lib/role-utils.ts (o que valia antes desta configuração existir)
+export const DEFAULT_MENU_PERMISSIONS: MenuPermissions = {
+  ADMIN_ANALYST: ['/dashboard', '/dashboard/lista-atencao', '/consultar/historico', '/peticoes', '/grupos'],
+  CAPTAIN: ['/dashboard', '/dashboard/lista-atencao', '/consultar/historico', '/lista-designacao'],
+  ASSISTANT_CAPTAIN: ['/dashboard', '/dashboard/lista-atencao', '/consultar/historico', '/lista-designacao'],
+};
+
+export const MENU_SETTING_KEY = 'menu_permissions';
