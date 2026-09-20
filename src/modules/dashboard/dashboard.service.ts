@@ -147,25 +147,10 @@ export class DashboardService {
       groups: params?.groupId ? participantsInGroup : groups.length,
       points: points.length,
       averagePresence: Number(averagePresence.toFixed()),
+      // treinamento não tem validade: conta só quem tem (ou não) alguma data registrada
       trainings: {
-        valid: participants.filter((p) => {
-          const trainingDate = p.lastTrainingDate;
-          if (!trainingDate) return false;
-          const trainingDateObj = new Date(trainingDate);
-          const currentDate = new Date();
-          const diffTime = Math.abs(currentDate.getTime() - trainingDateObj.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          return diffDays <= 365;
-        }).length,
-        expired: participants.filter((p) => {
-          const trainingDate = p.lastTrainingDate;
-          if (!trainingDate) return true;
-          const trainingDateObj = new Date(trainingDate);
-          const currentDate = new Date();
-          const diffTime = Math.abs(currentDate.getTime() - trainingDateObj.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          return diffDays > 365;
-        }).length,
+        withTraining: participants.filter((p) => !!p.lastTrainingDate).length,
+        withoutTraining: participants.filter((p) => !p.lastTrainingDate).length,
       },
       participants: {
         [ParticipantSex.MALE]: participants.filter((p) => p.sex === ParticipantSex.MALE).length,

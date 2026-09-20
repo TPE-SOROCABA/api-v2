@@ -35,13 +35,6 @@ function periodOf(configStartHour: string): Period {
   return 'evening';
 }
 
-// um ano atrás (mesma regra do dashboard.service pro treinamento válido)
-function oneYearAgo(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - 365);
-  return d;
-}
-
 @Injectable()
 export class WaitlistService {
   constructor(private readonly prisma: PrismaService) {}
@@ -62,7 +55,8 @@ export class WaitlistService {
         ...(filter.name && { name: { contains: filter.name, mode: 'insensitive' } }),
         ...(filter.sex && { sex: filter.sex }),
         ...(filter.congregationId && { congregationId: filter.congregationId }),
-        ...(filter.trainingValid && { lastTrainingDate: { gte: oneYearAgo() } }),
+        // treinamento não tem validade: "com treinamento" = tem alguma data registrada
+        ...(filter.hasTraining && { lastTrainingDate: { not: null } }),
       },
       include: {
         petitions: { select: { createdAt: true } },
@@ -113,7 +107,10 @@ export class WaitlistService {
             waitingSince: c.waitingSince,
           }));
 
+        // todo grupo tem um máximo, e o que vale como "mínimo" é esse máximo: qualquer
+        // grupo abaixo dele tem vagas e precisa de gente (configMin fica só informativo)
         const currentMembers = g.participantsGroup.length;
+        const vacancies = Math.max(g.configMax - currentMembers, 0);
         return {
           groupId: g.id,
           name: g.name,
@@ -125,7 +122,8 @@ export class WaitlistService {
           configMin: g.configMin,
           configMax: g.configMax,
           currentMembers,
-          needsHelp: currentMembers < g.configMin,
+          vacancies,
+          needsHelp: vacancies > 0,
           candidates,
         };
       })
