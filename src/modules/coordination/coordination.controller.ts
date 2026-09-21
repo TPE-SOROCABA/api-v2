@@ -4,8 +4,9 @@ import { AuthenticatedRequest } from 'src/shared/types';
 import { AuditAction, AuditService } from '../audit/audit.service';
 import { FindAuditParams } from '../audit/dto/find-audit.params';
 import { MENU_PROFILES, MENU_SETTING_KEY, SETTING_KEYS, SettingsService } from '../settings/settings.service';
-import { FindPeopleParams, UpdateAnnouncementDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
+import { FindHistoryParams, FindPeopleParams, UpdateAnnouncementDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
 import { CoordinationService } from './coordination.service';
+import { HistoryService } from './history.service';
 import { PeopleService } from './people.service';
 
 /**
@@ -20,6 +21,7 @@ export class CoordinationController {
     private readonly peopleService: PeopleService,
     private readonly auditService: AuditService,
     private readonly settingsService: SettingsService,
+    private readonly historyService: HistoryService,
   ) {}
 
   private auditSetting(req: AuthenticatedRequest, key: string, name: string, label: string) {
@@ -41,6 +43,18 @@ export class CoordinationController {
   @Get('people')
   people(@Query() query: FindPeopleParams) {
     return this.peopleService.findAll(query);
+  }
+
+  // Histórico de UMA pessoa: ações registradas + por onde trabalhou (estimado pelas designações) + faltas
+  @Get('people/:id/history')
+  personHistory(@Param('id') id: string, @Query() query: FindHistoryParams) {
+    return this.historyService.person(id, query.months ?? 12);
+  }
+
+  // Rotatividade: quem passou por mais de um grupo (saídas estimadas + trocas registradas) e como estão as faltas
+  @Get('turnover')
+  turnover(@Query() query: FindHistoryParams) {
+    return this.historyService.turnover(query.months ?? 12, query.minGroups ?? 2);
   }
 
   @Patch('people/:id/profile')

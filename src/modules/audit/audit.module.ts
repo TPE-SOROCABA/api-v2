@@ -1,10 +1,12 @@
 import { Global, Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './audit.interceptor';
 import { AuditService } from './audit.service';
 
 // global: qualquer módulo que altera dado sensível injeta o AuditService sem importar nada
 @Global()
 @Module({
-  providers: [AuditService],
+  providers: [AuditService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],
   exports: [AuditService],
 })
 export class AuditModule {}

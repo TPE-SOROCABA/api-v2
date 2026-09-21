@@ -78,3 +78,21 @@ export class UpdateMenuPermissionsDto {
   @IsObject({ message: 'permissions deve ser um objeto' })
   permissions: Record<string, string[]>;
 }
+
+/** Período (em meses) do histórico/rotatividade. */
+export class FindHistoryParams {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'months deve ser inteiro' })
+  @Min(1)
+  @Max(36)
+  months?: number;
+
+  /** rotatividade: só quem trabalhou em pelo menos N grupos (padrão 2) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'minGroups deve ser inteiro' })
+  @Min(1)
+  @Max(10)
+  minGroups?: number;
+}
