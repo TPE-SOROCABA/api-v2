@@ -41,14 +41,17 @@ export class IncidentsController {
     });
   }
 
-  /** Saúde de faltas: média por grupo vs. média geral. */
+  /** Saúde de faltas: média por grupo vs. média geral e vs. a média do próprio tipo (Centro / Adicional). */
   @Get('health')
   async health(@Request() req: AuthenticatedRequest, @Query() query: FindIncidentsParams) {
     const { groupIds } = await this.groupScope.resolveGroupFilter(req.user, query.groupId);
+    const scope = await this.groupScope.resolve(req.user);
     return this.incidentsService.health({
       groupIds,
       dateFrom: query.dateFrom,
       dateTo: query.dateTo,
+      // capitão só recebe a média do tipo do grupo dele (o coordenador vê as duas)
+      restrictToScope: !scope.all,
     });
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DesignationStatus, GroupStatus, GroupType, ParticipantGroupProfile, ParticipantProfile, ParticipantSex, PetitionStatus } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
+import { IncidentsService } from '../incidents/incidents.service';
 import { WaitlistService } from '../waitlist/waitlist.service';
 
 // petição em "aguardando informação" há mais que isso conta como esquecida
@@ -48,6 +49,7 @@ export class CoordinationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly waitlistService: WaitlistService,
+    private readonly incidentsService: IncidentsService,
   ) {}
 
   /** Pedidos de troca em aberto. Se a tabela ainda não existe neste ambiente, o resto da visão geral segue normal. */
@@ -198,6 +200,8 @@ export class CoordinationService {
     }
 
     const changeRequests = await this.loadChangeRequests();
+    // média de faltas por dia trabalhado: uma pro Centro e outra pros Adicionais (têm "normais" diferentes)
+    const health = await this.incidentsService.health({});
 
     // ---- alertas (só os que têm algo a resolver) ---------------------------------------
     const alerts: OverviewAlert[] = [
@@ -311,7 +315,11 @@ export class CoordinationService {
         wantingChange: changeRequests.length,
         oldestWaitingSince,
       },
-      incidents: { total: incidentsTotal, last30Days: incidentsRecent },
+      incidents: {
+        total: incidentsTotal,
+        last30Days: incidentsRecent,
+        averages: { MAIN: health.overallByType.MAIN, ADDITIONAL: health.overallByType.ADDITIONAL },
+      },
       alerts,
     };
   }
