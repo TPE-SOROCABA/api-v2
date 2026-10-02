@@ -84,7 +84,7 @@ export class WaitlistService {
       include: {
         petitions: { select: { createdAt: true } },
         congregation: { select: { id: true, name: true, city: true } },
-        participantsGroup: { include: { group: { select: { id: true, name: true, type: true } } } },
+        participantsGroup: { include: { group: { select: { id: true, name: true, type: true, configWeekday: true, configStartHour: true } } } },
       },
     });
 
@@ -121,7 +121,13 @@ export class WaitlistService {
           const desired = request ? (request.desiredSlots as unknown as DesiredSlot[]) : [];
 
           // regra de composição: 1 Centro (MAIN) + 1 adicional, ou 2 adicionais
-          const canAdd = c.total < 2 && !(g.type === GroupType.MAIN && c.mainCount > 0);
+          // conflito de horário: já está noutro grupo no mesmo dia e período (ex.: quarta à tarde) — não dá
+          // pra estar nos dois, mesmo que ainda tenha vaga na regra de composição
+          const conflictsWithThis = (x: { configWeekday: Weekday; configStartHour: string }) =>
+            x.configWeekday === g.configWeekday && periodOf(x.configStartHour) === period;
+          const hasConflict = c.groups.some(conflictsWithThis);
+
+          const canAdd = c.total < 2 && !(g.type === GroupType.MAIN && c.mainCount > 0) && !hasConflict;
           // disponibilidade no dia/período do grupo
           const match = c.availability.find((a) => a.weekDay === weekdayNum);
           const available = !!match && !!match[period];
@@ -130,7 +136,8 @@ export class WaitlistService {
           const swapFrom = request
             ? c.groups.filter((leaving) => {
                 const remaining = c.groups.filter((x) => x.id !== leaving.id);
-                return !(g.type === GroupType.MAIN && remaining.some((x) => x.type === GroupType.MAIN));
+                // sair de um grupo libera o horário dele; mas não pode sobrar outro conflitando
+                return !(g.type === GroupType.MAIN && remaining.some((x) => x.type === GroupType.MAIN)) && !remaining.some(conflictsWithThis);
               })
             : [];
           const wantsThisSlot = desired.some((slot) => slot.weekDay === weekdayNum && slot.period === period);
