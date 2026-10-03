@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { GroupChangeRequests, GroupType, ParticipantSex, PetitionStatus, Weekday } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { FindWaitlistParams } from './dto/find-waitlist.params';
@@ -41,6 +41,9 @@ export interface DesiredSlot {
   period: Period;
 }
 
+/** Ordem manual da coluna de um grupo, guardada em `system_settings` (lista de ids de participantes). */
+const orderKey = (groupId: string) => `waitlist_order:${groupId}`;
+
 @Injectable()
 export class WaitlistService {
   private readonly logger = new Logger(WaitlistService.name);
@@ -61,6 +64,46 @@ export class WaitlistService {
     }
   }
 
+
+  private async loadOrders(groupIds: string[]) {
+    try {
+      const rows = await this.prisma.systemSettings.findMany({ where: { key: { in: groupIds.map(orderKey) } } });
+      const map = new Map<string, Map<string, number>>();
+      for (const row of rows) {
+        try {
+          const ids = JSON.parse(row.value) as string[];
+          map.set(row.key.slice('waitlist_order:'.length), new Map(ids.map((id, i) => [id, i])));
+        } catch {
+          // valor corrompido: ignora e cai na ordem por data
+        }
+      }
+      return map;
+    } catch (error) {
+      this.logger.error(`Não foi possível carregar a ordem manual: ${(error as Error).message}`);
+      return new Map<string, Map<string, number>>();
+    }
+  }
+
+  /** Salva a ordem manual da coluna. Vazio = volta à ordem por data. */
+  async setOrder(groupId: string, participantIds: unknown) {
+    if (!Array.isArray(participantIds) || participantIds.some((id) => typeof id !== 'string')) {
+      throw new BadRequestException('Envie participantIds como lista de textos');
+    }
+    const ids = [...new Set(participantIds as string[])];
+    const group = await this.prisma.groups.findUnique({ where: { id: groupId }, select: { id: true } });
+    if (!group) throw new NotFoundException('Grupo não encontrado');
+    if (ids.length === 0) {
+      await this.prisma.systemSettings.deleteMany({ where: { key: orderKey(groupId) } });
+    } else {
+      const value = JSON.stringify(ids);
+      await this.prisma.systemSettings.upsert({
+        where: { key: orderKey(groupId) },
+        create: { key: orderKey(groupId), value },
+        update: { value },
+      });
+    }
+    return { groupId, participantIds: ids };
+  }
 
   async getWaitlist(filter: FindWaitlistParams) {
     const groups = await this.prisma.groups.findMany({
@@ -89,6 +132,7 @@ export class WaitlistService {
     });
 
     const requests = await this.loadOpenRequests();
+    const orders = await this.loadOrders(groups.map((g) => g.id));
 
     // capacidade de cada participante (quantos grupos MAIN/ADDITIONAL já ocupa)
     const withCapacity = participants
@@ -148,9 +192,18 @@ export class WaitlistService {
           return [{ c, request, canAdd, swapFrom, viaSwapOnly: !asCandidate }];
         });
 
+        // ordem manual do coordenador na frente; quem não foi posicionado vem depois, por data
+        const manual = orders.get(g.id);
         const candidates = entries
           .map((e) => ({ ...e, since: e.viaSwapOnly && e.request ? e.request.createdAt : e.c.waitingSince }))
-          .sort((a, b) => a.since.getTime() - b.since.getTime())
+          .sort((a, b) => {
+            const ia = manual?.get(a.c.participant.id);
+            const ib = manual?.get(b.c.participant.id);
+            if (ia !== undefined && ib !== undefined) return ia - ib;
+            if (ia !== undefined) return -1;
+            if (ib !== undefined) return 1;
+            return a.since.getTime() - b.since.getTime();
+          })
           .map(({ c, request, canAdd, swapFrom, viaSwapOnly, since }) => ({
             participantId: c.participant.id,
             name: c.participant.name,
@@ -194,6 +247,7 @@ export class WaitlistService {
           currentMembers,
           vacancies,
           needsHelp: vacancies > 0,
+          manualOrder: !!manual,
           candidates,
         };
       })
