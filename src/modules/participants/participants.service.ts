@@ -4,7 +4,8 @@ import { UpdateParticipantDto } from './dto/update-participant.dto';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
 import { Participant } from './entities/participants.entity';
-import { ParticipantProfile, PetitionStatus } from '@prisma/client';
+import { DesignationStatus, ParticipantProfile, PetitionStatus } from '@prisma/client';
+import { profilePhotoOrAvatar } from 'src/shared/fake-image';
 import * as fs from 'fs';
 import { FindAllParticipantParams } from './dto/find-all-participants.params';
 import { FirebaseService } from 'src/infra/firebase.service';
@@ -15,13 +16,16 @@ import { JwtPayload } from 'src/shared/types';
 @Injectable()
 export class ParticipantsService {
   logger = new TransactionLogger(ParticipantsService.name);
-  constructor(private prisma: PrismaService, private readonly firebaseService: FirebaseService, private readonly audit: AuditService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly firebaseService: FirebaseService,
+    private readonly audit: AuditService,
+  ) {}
 
   async create(createParticipantDto: CreateParticipantDto) {
     const participant = Participant.build(createParticipantDto);
     this.logger.log(`Criando participante `, createParticipantDto.name);
     try {
-
       return await this.prisma.$transaction([
         this.prisma.participants.upsert({
           where: { phone: participant.phone },
@@ -31,15 +35,18 @@ export class ParticipantsService {
         this.prisma.petitions.update({
           where: { id: createParticipantDto.petitionId },
           data: { status: participant.registrationStatus, name: createParticipantDto.name },
-        })
+        }),
       ]);
     } catch (error) {
       this.logger.error(`Erro ao criar participante: ${error}`);
-      throw error
+      throw error;
     }
   }
 
   async findAll(params: FindAllParticipantParams) {
+    // `?groupId=` é um formato diferente (port de `listParticipants` da legacy).
+    if (params.groupId) return this.findAllByGroup(params.groupId, params.filter);
+
     this.logger.log('Buscando todos os participantes');
     const participants = await this.prisma.participants.findMany({
       include: {
@@ -47,37 +54,93 @@ export class ParticipantsService {
         congregation: true,
         participantsGroup: {
           include: {
-            group: true
-          }
+            group: true,
+          },
         },
       },
       where: {
         name: {
           contains: params.name || '',
-          mode: 'insensitive'
+          mode: 'insensitive',
         },
         phone: {
-          contains: params.phone || ''
+          contains: params.phone || '',
         },
         email: {
-          contains: params.email || ''
+          contains: params.email || '',
         },
         profile: params.profile || undefined,
         petitions: {
           status: {
-            in: [PetitionStatus.WAITING, PetitionStatus.ACTIVE]
-          }
-        }
-      }
+            in: [PetitionStatus.WAITING, PetitionStatus.ACTIVE],
+          },
+        },
+      },
     });
 
-    return participants.map(participant => {
+    return participants.map((participant) => {
       const { participantsGroup, ...rest } = participant;
       return {
         ...rest,
-        groups: participantsGroup.map(participantGroup => participantGroup.group)
-      }
-    })
+        groups: participantsGroup.map((participantGroup) => participantGroup.group),
+      };
+    });
+  }
+
+  /**
+   * `GET /participants?groupId=` — port 1:1 do `listParticipants.handler` da legacy.
+   *
+   * O que difere de `findAll` acima, e é contrato com o `admin-tpe`:
+   *  - sai de `participants_groups` (membros do grupo), não de `participants`;
+   *  - `profile` é o **cargo no grupo**, não o perfil global;
+   *  - `incident_history` é a falta ABERTA mais recente em designação **não
+   *    arquivada** do mesmo grupo — a legacy filtra por
+   *    `designation.groupId = X AND status != ARCHIVED`;
+   *  - o filtro de nome é sobre `computed` (nome "slugificado"), não `name`;
+   *  - `profile_photo` sempre preenchido: sem foto, cai no avatar gerado.
+   */
+  private async findAllByGroup(groupId: string, filter?: string) {
+    this.logger.log(`Buscando participantes do grupo ${groupId}`);
+
+    const participantsGroups = await this.prisma.participantsGroups.findMany({
+      where: {
+        groupId,
+        ...(filter && {
+          AND: {
+            participant: {
+              computed: { contains: filter, mode: 'insensitive' },
+            },
+          },
+        }),
+      },
+      include: {
+        participant: {
+          include: {
+            incidentParticipant: {
+              where: {
+                designation: {
+                  groupId,
+                  status: { not: DesignationStatus.ARCHIVED },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
+      },
+    });
+
+    return participantsGroups.map((participantsGroup) => {
+      const [incident] = participantsGroup.participant.incidentParticipant;
+      return {
+        id: participantsGroup.participant.id,
+        name: participantsGroup.participant.name,
+        phone: participantsGroup.participant.phone,
+        profile_photo: profilePhotoOrAvatar(participantsGroup.participant),
+        profile: participantsGroup.profile,
+        incident_history: incident ? { id: incident.id, reason: incident.reason, status: incident.status } : null,
+      };
+    });
   }
 
   async findOne(id: string) {
@@ -89,8 +152,8 @@ export class ParticipantsService {
         congregation: true,
         participantsGroup: {
           include: {
-            group: true
-          }
+            group: true,
+          },
         },
       },
     });
@@ -102,8 +165,8 @@ export class ParticipantsService {
     const { participantsGroup, ...rest } = participant;
     return {
       ...rest,
-      groups: participantsGroup.map(participantGroup => participantGroup.group)
-    }
+      groups: participantsGroup.map((participantGroup) => participantGroup.group),
+    };
   }
 
   async findByEmail(email: string) {
@@ -113,7 +176,7 @@ export class ParticipantsService {
       include: {
         petitions: true,
         congregation: true,
-      }
+      },
     });
 
     if (!participant) {
@@ -130,7 +193,7 @@ export class ParticipantsService {
       include: {
         petitions: true,
         congregation: true,
-      }
+      },
     });
 
     if (!participant) {
@@ -152,8 +215,8 @@ export class ParticipantsService {
       where: {
         id: participant?.petitionId || updateParticipantDto?.petitionId,
         status: {
-          in: [PetitionStatus.CREATED, PetitionStatus.WAITING, PetitionStatus.WAITING_INFORMATION]
-        }
+          in: [PetitionStatus.CREATED, PetitionStatus.WAITING, PetitionStatus.WAITING_INFORMATION],
+        },
       },
       data: { status: participant.registrationStatus, name: participant.name },
     });
@@ -214,7 +277,7 @@ export class ParticipantsService {
       try {
         const key = participant.profilePhoto.split('/').pop();
         this.logger.log(`Excluindo foto antiga: ${key}`);
-        await this.firebaseService.deleteFileByUrl(participant.profilePhoto).catch(() => { });
+        await this.firebaseService.deleteFileByUrl(participant.profilePhoto).catch(() => {});
         this.logger.log(`Excluindo foto antiga: ${key}`);
         this.logger.log(`Foto antiga excluída: ${key}`);
       } catch (error) {
@@ -227,13 +290,16 @@ export class ParticipantsService {
 
     const uuid = uuidv4();
     this.logger.log(`Fazendo upload da imagem para o Firebase...`);
-    const imageUrl = await this.firebaseService.uploadFile({
-      ...file,
-      buffer: image,
-      mimetype: 'image/png',
-      size: image.length,
-      originalname: `${uuid}.png`
-    }, `participants/${uuid}.png`);
+    const imageUrl = await this.firebaseService.uploadFile(
+      {
+        ...file,
+        buffer: image,
+        mimetype: 'image/png',
+        size: image.length,
+        originalname: `${uuid}.png`,
+      },
+      `participants/${uuid}.png`,
+    );
     this.logger.log(`Upload concluído. URL da imagem: ${imageUrl}`);
 
     fs.unlinkSync(file.path);

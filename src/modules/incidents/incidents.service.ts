@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { GroupType, Prisma } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { DesignationStatus, GroupType, IncidentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
+import { JwtPayload } from 'src/shared/types';
+import { UpdateIncidentDto } from './dto/incident.dto';
 
 export interface IncidentsFilter {
   /** undefined = todos os grupos; array = restringe a esses grupos */
@@ -226,7 +228,14 @@ export class IncidentsService {
 
     const decorate = (g: (typeof perGroup)[number]) => {
       if (g.avgPerDesignation === null) {
-        return { ...g, vsOverall: null as string | null, deltaPct: null as number | null, typeAvgPerDesignation: null as number | null, vsType: null as string | null, deltaPctType: null as number | null };
+        return {
+          ...g,
+          vsOverall: null as string | null,
+          deltaPct: null as number | null,
+          typeAvgPerDesignation: null as number | null,
+          vsType: null as string | null,
+          deltaPctType: null as number | null,
+        };
       }
       const overall = compare(g.avgPerDesignation, overallAvgPerDesignation);
       const typeAvg = byType[g.type].avg;
@@ -249,5 +258,123 @@ export class IncidentsService {
       overallByType,
       groups: scoped.map(decorate).sort((a, b) => b.incidents - a.incidents),
     };
+  }
+
+  // --------------------------------------------------------------------------------------
+  // Escrita de faltas (veio da legacy). Mesmo caminho/mesmas regras para o front não mudar.
+  // --------------------------------------------------------------------------------------
+
+  /**
+   * Registra a falta do voluntário numa designação e tira ele do ponto da designação.
+   *
+   * A legacy removia a pessoa do ponto e publicava a designação INTEIRA na fila FIFO; o
+   * consumidor reescrevia `assignments_participants` do zero com o estado lido antes da
+   * transação. Aqui deletamos só as linhas do voluntário, dentro da mesma transação:
+   * mesmo resultado no banco, sem a corrida de ler-antes-e-escrever-depois e sem chamada
+   * de rede dentro da transação.
+   */
+  async create(designationId: string, participantId: string, reason: string, actor?: JwtPayload) {
+    // sem token (é rota pública: o voluntário abre pelo link do WhatsApp), quem reporta é o próprio
+    const reporterId = actor?.id ?? participantId;
+
+    const [participant, reporter] = await Promise.all([
+      this.prisma.participants.findUnique({ where: { id: participantId }, select: { id: true, name: true } }),
+      this.prisma.participants.findUnique({ where: { id: reporterId }, select: { id: true } }),
+    ]);
+
+    // a pessoa precisa estar num grupo que tenha esta designação
+    const inGroupOfDesignation = await this.prisma.participantsGroups.findFirst({
+      where: { participantId, group: { designations: { some: { id: designationId } } } },
+      select: { id: true },
+    });
+
+    if (!participant || !reporter || !inGroupOfDesignation) {
+      throw new NotFoundException('Parâmetros inválidos ou participante não encontrado na designação');
+    }
+
+    const designation = await this.prisma.designations.findUnique({
+      where: { id: designationId },
+      select: { id: true, status: true },
+    });
+    if (!designation) throw new NotFoundException('Designação não encontrada');
+
+    const alreadyOpen = await this.prisma.incidentHistories.findFirst({
+      where: { participantId, designationId, status: IncidentStatus.OPEN },
+      select: { id: true },
+    });
+    if (alreadyOpen) throw new BadRequestException('Já existe um incidente aberto para este participante nesta designação');
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.incidentHistories.create({
+          data: {
+            participantId: participant.id,
+            reporterId: reporter.id,
+            reason,
+            status: IncidentStatus.OPEN,
+            designationId: designation.id,
+          },
+        });
+
+        // tira do ponto: os vínculos desta pessoa com os pontos desta designação
+        const links = await tx.assignmentsParticipants.findMany({
+          where: { participantId: participant.id, assignment: { designationsId: designationId } },
+          select: { id: true },
+        });
+        if (links.length) {
+          await tx.assignmentsParticipants.deleteMany({ where: { id: { in: links.map((l) => l.id) } } });
+        }
+      });
+    } catch (error) {
+      // `@@unique([participantId, designationId])`: mesmo com a falta já fechada/cancelada,
+      // o banco recusa uma segunda. A legacy devolvia aqui um "Erro ao criar incidente" genérico.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new BadRequestException('Já existe um incidente registrado para este participante nesta designação');
+      }
+      throw error;
+    }
+
+    return { message: 'Incidente criado com sucesso' };
+  }
+
+  /** Busca o incidente scoped na designação+participante: a rota traz os três ids e precisa casar. */
+  private async findScopedIncident(designationId: string, participantId: string, incidentId: string) {
+    const incident = await this.prisma.incidentHistories.findFirst({
+      where: { id: incidentId, participantId, designationId },
+      include: { designation: { select: { status: true } } },
+    });
+    if (!incident) throw new NotFoundException('Incidente não encontrado para este participante nesta designação');
+    return incident;
+  }
+
+  async update(designationId: string, participantId: string, incidentId: string, dto: UpdateIncidentDto) {
+    const incident = await this.findScopedIncident(designationId, participantId, incidentId);
+
+    const status = incident.designation.status;
+    if (status === DesignationStatus.CANCELLED || status === DesignationStatus.ARCHIVED) {
+      throw new ForbiddenException('Designação está cancelada ou arquivada');
+    }
+
+    await this.prisma.incidentHistories.update({
+      where: { id: incidentId },
+      data: {
+        status: dto.status ?? incident.status,
+        reason: dto.reason ?? incident.reason,
+      },
+    });
+
+    return { message: 'Incidente atualizado com sucesso' };
+  }
+
+  async remove(designationId: string, participantId: string, incidentId: string) {
+    const incident = await this.findScopedIncident(designationId, participantId, incidentId);
+
+    const status = incident.designation.status;
+    if (status !== DesignationStatus.OPEN && status !== DesignationStatus.IN_PROGRESS) {
+      throw new ForbiddenException('Designação está cancelada ou arquivada não é possível excluir incidentes');
+    }
+
+    await this.prisma.incidentHistories.delete({ where: { id: incidentId } });
+    return { message: 'Incidente deletado com sucesso' };
   }
 }

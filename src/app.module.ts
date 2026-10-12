@@ -25,9 +25,32 @@ import { CoordinationModule } from './modules/coordination/coordination.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { GroupChangeRequestsModule } from './modules/group-change-requests/group-change-requests.module';
+import { SqsModule } from './infra/sqs/sqs.module';
+import { SharedModule } from './shared/shared.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule, IncidentsModule, WaitlistModule, DesignationInsightsModule, CoordinationModule, AuditModule, SettingsModule, GroupChangeRequestsModule],
+  imports: [
+    PrismaModule,
+    SharedModule,
+    SqsModule,
+    AuthModule,
+    PetitionsModule,
+    ParticipantsModule,
+    CongregationsModule,
+    ScheduleModule.forRoot(),
+    GroupsModule,
+    DashboardModule,
+    PointsModule,
+    DesignationsModule,
+    IncidentsModule,
+    WaitlistModule,
+    DesignationInsightsModule,
+    CoordinationModule,
+    AuditModule,
+    SettingsModule,
+    GroupChangeRequestsModule,
+  ],
   controllers: [AppController],
   providers: [
     {
@@ -44,7 +67,7 @@ import { GroupChangeRequestsModule } from './modules/group-change-requests/group
       useClass: PrismaReconnectionInterceptor,
     },
     ConvertPdfToImagesUseCase,
-    OcrService
+    OcrService,
   ],
 })
 export class AppModule implements NestModule {

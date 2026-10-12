@@ -17,12 +17,18 @@ npm run dev          # API em http://localhost:3001
 
 🔗 **Antes de criar módulo, rota, utilitário ou migrar lógica: pesquise em https://github.com/TPE-SOROCABA/api (clone local em `../api/`) — pode já existir lá com testes e casos tratados.**
 
-Exemplos do que vive na legacy e **não duplicar** aqui:
-- Auth completo: `src/functions/auth/` (login, login-code, recover-password, reset-password)
-- Authorizer Lambda: `src/functions/auth/checkAuthorizer.ts`
-- Cron de designações: `src/functions/designations/` (12+ handlers)
-- Webhooks, WhatsApp, shortener (`sls-shortener.yml`)
-- Repositórios e mappers em `src/repositories/`, `src/mappers/`
+**Este repo é o BFF do admin-tpe.** Auth, HTTP de designações, faltas e listagem
+de participantes por grupo foram portados mantendo os caminhos da legacy.
+`npm run check:migration` valida contratos sem banco/AWS reais;
+`npm run check:admin-routes` compara chamadas do repo irmão com os controllers.
+
+Continuam na legacy, sem migração nesta etapa:
+- Crons de designações, consumidores SQS, WhatsApp e DLQ/redrive.
+- Webhooks, entrada pública `/public/start/:id` e shortener (`sls-shortener.yml`).
+- Infraestrutura Serverless e handlers HTTP antigos durante a transição.
+
+Prisma deste repo é a fonte da verdade. Não executar migrations, `migrate dev`
+ou `db push`: o usuário aplica as migrations. Ver `docs/BFF-MIGRATION.md`.
 
 Se algo já existe lá e aqui está incompleto, o caminho é **portar** (não reinventar).
 
@@ -70,7 +76,10 @@ Chaves que o app consome (`process.env.X` direto, **não há `@nestjs/config`**)
 
 ## Auth em dev
 
-**Não existe `@Public()` decorator.** O guard é global (`APP_GUARD` em `src/app.module.ts`). Para qualquer rota nova, ela exige JWT automaticamente.
+O guard é global (`APP_GUARD` em `src/app.module.ts`). Rotas novas exigem JWT
+automaticamente; `@Public()` de `src/auth/public.decorator.ts` libera apenas
+login/recuperação e o autoatendimento público do voluntário. Em rotas públicas,
+token válido é opcional e pode identificar o reporter de uma falta.
 
 ### Como obter um token válido local
 
@@ -127,7 +136,7 @@ docker exec -i -e PGPASSWORD=tpe pg-tpe-dev \
 ### Migrações
 
 - 39 migrations em `prisma/migrations/`. **NÃO precisa `prisma migrate deploy` no dev** — o dump já tem `_prisma_migrations` populado.
-- Para criar nova migration: `npx prisma migrate dev --name <descritivo>` (cuidado: dump restaurado sobrescreve tudo se rodar `db:restore`).
+- Para alterações de schema, criar/revisar os arquivos de migration sem aplicar ao banco. O usuário executa as migrations; nunca usar `migrate dev`/`db push` nesta migração.
 
 ---
 
@@ -149,7 +158,7 @@ Quando criar testes: o padrão está em `test/groups-cron.e2e-spec.ts` (385 linh
 
 ```
 src/
-├── auth/auth.guard.ts                 # JWT guard global, sem @Public()
+├── auth/auth.guard.ts                 # JWT guard global, respeita @Public()
 ├── infra/
 │   ├── prisma/                        # PrismaService @Global + exception filter + interceptors
 │   ├── firebase.service.ts            # Storage only, NÃO é auth
