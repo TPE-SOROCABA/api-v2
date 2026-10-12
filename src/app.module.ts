@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
+import { RolesGuard } from './shared/roles.guard';
 import { PetitionsModule } from './modules/petitions/petitions.module';
 import { ParticipantsModule } from './modules/participants/participants.module';
 import { LoggingTimeMiddleware } from './middleware/logging-time.middleware';
@@ -20,21 +21,53 @@ import { DesignationsModule } from './modules/designations/designations.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { WaitlistModule } from './modules/waitlist/waitlist.module';
 import { DesignationInsightsModule } from './modules/designation-insights/designation-insights.module';
+import { CoordinationModule } from './modules/coordination/coordination.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { GroupChangeRequestsModule } from './modules/group-change-requests/group-change-requests.module';
+import { SqsModule } from './infra/sqs/sqs.module';
+import { SharedModule } from './shared/shared.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, PetitionsModule, ParticipantsModule, CongregationsModule, ScheduleModule.forRoot(), GroupsModule, DashboardModule, PointsModule, DesignationsModule, IncidentsModule, WaitlistModule, DesignationInsightsModule],
+  imports: [
+    PrismaModule,
+    SharedModule,
+    SqsModule,
+    AuthModule,
+    PetitionsModule,
+    ParticipantsModule,
+    CongregationsModule,
+    ScheduleModule.forRoot(),
+    GroupsModule,
+    DashboardModule,
+    PointsModule,
+    DesignationsModule,
+    IncidentsModule,
+    WaitlistModule,
+    DesignationInsightsModule,
+    CoordinationModule,
+    AuditModule,
+    SettingsModule,
+    GroupChangeRequestsModule,
+  ],
   controllers: [AppController],
   providers: [
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
+    // depois do AuthGuard (que popula request.user): só age em rota com @Roles()
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: PrismaReconnectionInterceptor,
     },
     ConvertPdfToImagesUseCase,
-    OcrService
+    OcrService,
   ],
 })
 export class AppModule implements NestModule {

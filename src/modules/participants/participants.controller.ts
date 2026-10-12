@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Put, Param, Patch, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Patch, UseInterceptors, UploadedFile, Query, Request } from '@nestjs/common';
+import { AuthenticatedRequest } from 'src/shared/types';
 import { ParticipantsService } from './participants.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { UpdateParticipantDto } from './dto/update-participant.dto';
@@ -7,6 +8,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'node:path';
 import { FindAllParticipantParams } from './dto/find-all-participants.params';
+import { Roles } from 'src/shared/roles.decorator';
 
 @Controller('participants')
 export class ParticipantsController {
@@ -42,11 +44,13 @@ export class ParticipantsController {
     return this.participantsService.findByPhone(phone);
   }
 
-  // Rota experimental, para ambiente de desenvolvimento
+  // Rota experimental. Sem @Roles, qualquer JWT válido (até de capitão) promovia qualquer
+  // pessoa a COORDINATOR; agora só coordenador (conferido no banco). A tela de Coordenação
+  // usa PATCH /coordination/people/:id/profile, com auditoria.
+  @Roles('COORDINATOR')
   @Patch('toggle-admin/:userId')
-  toggleAdminAnalyst(@Param('userId') userId: string) {
-    // depois colocar um middleware para verificar ambiente de desenvolvimento
-    return this.participantsService.toggleAdminAnalyst(userId);
+  toggleAdminAnalyst(@Request() req: AuthenticatedRequest, @Param('userId') userId: string) {
+    return this.participantsService.toggleAdminAnalyst(userId, req.user);
   }
 
   @Post(':id/photo')

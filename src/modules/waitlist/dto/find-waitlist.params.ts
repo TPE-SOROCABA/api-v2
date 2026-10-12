@@ -24,6 +24,6 @@ export class FindWaitlistParams {
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean({ message: 'trainingValid deve ser booleano' })
-  trainingValid?: boolean;
+  @IsBoolean({ message: 'hasTraining deve ser booleano' })
+  hasTraining?: boolean;
 }
