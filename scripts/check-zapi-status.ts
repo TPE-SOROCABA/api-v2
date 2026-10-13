@@ -2,14 +2,14 @@
  * Valida o ZapiService contra um Z-API local simulado.
  *
  * Não usa a instância real, não envia mensagem e não toca o banco: sobe um
- * HTTP server efêmero que imita status-check e qrcode/show-image, e confere
+ * HTTP server efêmero que imita /status e /qr-code/image, e confere
  * cada resposta que a tela pode receber.
  */
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import { ZapiService } from '../src/modules/coordination/zapi.service';
 
-type Mode = 'connected' | 'disconnected' | 'challenge' | 'noImage' | 'http500' | 'garbage' | 'hang';
+type Mode = 'connected' | 'disconnected' | 'challenge' | 'noImage' | 'http500' | 'http500semBody' | 'instanceNotFound' | 'garbage' | 'hang';
 let mode: Mode = 'connected';
 let calls = { status: 0, qr: 0 };
 const clientTokenSeen: string[] = [];
@@ -26,10 +26,16 @@ const server = http.createServer((req, res) => {
 
   clientTokenSeen.push(String(req.headers['client-token'] ?? ''));
 
-  if (path.endsWith('/status-check')) {
+  if (path.endsWith('/status')) {
     calls.status++;
     if (mode === 'hang') return; // não responde: exercita o timeout
     if (mode === 'http500') return send(500, { message: 'boom' });
+    if (mode === 'http500semBody') {
+      res.writeHead(500);
+      return res.end('');
+    }
+    // como o Z-API responde quando o token da instância não bate
+    if (mode === 'instanceNotFound') return send(400, { error: 'Instance not found', message: 'Unable to find the instance' });
     if (mode === 'garbage') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end('isto nao e json');
@@ -38,7 +44,7 @@ const server = http.createServer((req, res) => {
     return send(200, { connected: false, error: 'You need to restore the session', smartphoneConnected: true });
   }
 
-  if (path.endsWith('/qrcode/show-image')) {
+  if (path.endsWith('/qr-code/image')) {
     calls.qr++;
     if (mode === 'challenge') return send(200, { challenge: { challenge: 'abc', rpId: 'whatsapp.com' } });
     if (mode === 'noImage') return send(200, { message: 'já conectado' });
@@ -103,14 +109,28 @@ const main = async () => {
     assert.equal(qr.state, 'unavailable');
   });
 
-  await check('erro 500 do Z-API não vira exceção', async () => {
+  await check('erro 500 do Z-API não vira exceção e mostra a mensagem dele', async () => {
     mode = 'http500';
     const s = await svc.getStatus();
     assert.equal(s.reachable, false);
     assert.equal(s.connected, false);
-    assert.match(s.message ?? '', /500/);
+    assert.equal(s.message, 'boom');
     const qr = await svc.getQrCode();
     assert.equal(qr.state, 'unavailable');
+  });
+
+  await check('erro 500 sem corpo cai no genérico com o código HTTP', async () => {
+    mode = 'http500semBody';
+    const s = await svc.getStatus();
+    assert.equal(s.reachable, false);
+    assert.match(s.message ?? '', /500/);
+  });
+
+  await check('token inválido mostra o erro do Z-API, não um genérico', async () => {
+    mode = 'instanceNotFound';
+    const s = await svc.getStatus();
+    assert.equal(s.reachable, false);
+    assert.equal(s.message, 'Unable to find the instance');
   });
 
   await check('resposta não-JSON não derruba o serviço', async () => {
@@ -146,7 +166,7 @@ const main = async () => {
   });
 
   await close();
-  console.log(`\nZapiService validado contra Z-API simulado. Chamadas: ${calls.status} status-check, ${calls.qr} qrcode.`);
+  console.log(`\nZapiService validado contra Z-API simulado. Chamadas: ${calls.status} /status, ${calls.qr} qr-code/image.`);
   console.log('Nenhuma chamada à instância real, nenhuma mensagem enviada, nenhum dado alterado.');
 };
 

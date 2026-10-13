@@ -35,6 +35,12 @@ export interface ZapiStatus {
  */
 export type ZapiQrResult = { state: 'qrcode'; qrcode: string } | { state: 'challenge'; message: string } | { state: 'unavailable'; message: string };
 
+/** O Z-API devolve `{ error, message }` em JSON nos 4xx. */
+function zapiErrorMessage(body: Record<string, unknown> | null): string | null {
+  const msg = body?.message ?? body?.error;
+  return typeof msg === 'string' && msg.trim() ? msg : null;
+}
+
 @Injectable()
 export class ZapiService {
   private readonly logger = new Logger(ZapiService.name);
@@ -78,15 +84,18 @@ export class ZapiService {
   }
 
   async getStatus(): Promise<ZapiStatus> {
-    const url = this.instanceUrl('status-check');
+    const url = this.instanceUrl('status');
     if (!url) {
       return this.unreachable('Z-API não configurado neste ambiente (Z_API_URL, INSTANCE_ID e INSTANCE_TOKEN).');
     }
 
     const { ok, status, body, error } = await this.request(url);
     if (!ok) {
-      this.logger.warn(`[ZAPI] status-check respondeu ${status || 'sem resposta'}: ${error ?? 'erro do Z-API'}`);
-      return this.unreachable(error ?? `o Z-API respondeu ${status}.`);
+      // O Z-API responde 4xx com {error, message} em JSON: mostrar isso é mais
+      // útil que um genérico "respondeu 400".
+      const reason = zapiErrorMessage(body) ?? error ?? `o Z-API respondeu ${status}.`;
+      this.logger.warn(`[ZAPI] status respondeu ${status || 'sem resposta'}: ${reason}`);
+      return this.unreachable(reason);
     }
 
     return {
@@ -99,15 +108,16 @@ export class ZapiService {
   }
 
   async getQrCode(): Promise<ZapiQrResult> {
-    const url = this.instanceUrl('qrcode/show-image');
+    const url = this.instanceUrl('qr-code/image');
     if (!url) {
       return { state: 'unavailable', message: 'Z-API não configurado neste ambiente (Z_API_URL, INSTANCE_ID e INSTANCE_TOKEN).' };
     }
 
     const { ok, status, body, error } = await this.request(url);
     if (!ok) {
-      this.logger.warn(`[ZAPI] qrcode/show-image respondeu ${status || 'sem resposta'}: ${error ?? 'erro do Z-API'}`);
-      return { state: 'unavailable', message: error ?? `o Z-API respondeu ${status}.` };
+      const reason = zapiErrorMessage(body) ?? error ?? `o Z-API respondeu ${status}.`;
+      this.logger.warn(`[ZAPI] qr-code/image respondeu ${status || 'sem resposta'}: ${reason}`);
+      return { state: 'unavailable', message: reason };
     }
 
     if (body?.challenge) {
