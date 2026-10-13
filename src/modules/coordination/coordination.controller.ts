@@ -4,10 +4,19 @@ import { AuthenticatedRequest } from 'src/shared/types';
 import { AuditAction, AuditService } from '../audit/audit.service';
 import { FindAuditParams } from '../audit/dto/find-audit.params';
 import { MENU_PROFILES, MENU_SETTING_KEY, SETTING_KEYS, SettingsService } from '../settings/settings.service';
-import { FindHistoryParams, FindPeopleParams, UpdateAnnouncementDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
+import {
+  FindHistoryParams,
+  FindPeopleParams,
+  UpdateAnnouncementDto,
+  UpdateMenuPermissionsDto,
+  UpdateProfileDto,
+  UpdateTrainingDto,
+  UpdateWhatsappTemplateDto,
+} from './dto/coordination.dto';
 import { CoordinationService } from './coordination.service';
 import { HistoryService } from './history.service';
 import { PeopleService } from './people.service';
+import { ZapiService } from './zapi.service';
 
 /**
  * Central de Coordenação: visão do TPE inteiro e ajustes gerais.
@@ -22,6 +31,7 @@ export class CoordinationController {
     private readonly auditService: AuditService,
     private readonly settingsService: SettingsService,
     private readonly historyService: HistoryService,
+    private readonly zapiService: ZapiService,
   ) {}
 
   private auditSetting(req: AuthenticatedRequest, key: string, name: string, label: string) {
@@ -120,5 +130,21 @@ export class CoordinationController {
   @Get('audit')
   audit(@Query() query: FindAuditParams) {
     return this.auditService.findAll(query);
+  }
+
+  /**
+   * Diagnóstico da instância do WhatsApp. `reachable: false` não é erro 500:
+   * significa que o Z-API não respondeu (ou não está configurado), e a tela
+   * mostra isso em vez de quebrar.
+   */
+  @Get('whatsapp-status')
+  whatsappStatus() {
+    return this.zapiService.getStatus();
+  }
+
+  // QR Code da MESMA instância, para reconectar quando ela cai.
+  @Get('whatsapp-qrcode')
+  whatsappQrcode() {
+    return this.zapiService.getQrCode();
   }
 }

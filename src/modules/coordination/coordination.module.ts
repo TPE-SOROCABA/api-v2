@@ -6,10 +6,11 @@ import { CoordinationController } from './coordination.controller';
 import { CoordinationService } from './coordination.service';
 import { HistoryService } from './history.service';
 import { PeopleService } from './people.service';
+import { ZapiService } from './zapi.service';
 
 @Module({
   imports: [WaitlistModule, SettingsModule, IncidentsModule],
   controllers: [CoordinationController],
-  providers: [CoordinationService, PeopleService, HistoryService],
+  providers: [CoordinationService, PeopleService, HistoryService, ZapiService],
 })
 export class CoordinationModule {}
