@@ -65,6 +65,38 @@ export class ConvertPdfToImagesUseCase {
         return images;
     }
 
+    /**
+     * Só para ANALISAR um PDF antes do envio: converte apenas a página 1 (onde está o nome)
+     * e devolve o caminho da imagem. Não apaga o PDF; quem chama limpa os arquivos temporários.
+     */
+    async extractFirstPage(pdfPath: string, bypass = false): Promise<string> {
+        if (!bypass) {
+            await this.validatePdf(pdfPath, 'UBLICO ESPECIAL');
+        }
+
+        const outputDir = path.join(__dirname, '..', '..', 'output');
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        const converter = fromPath(pdfPath, {
+            density: 300,
+            width: 2480,
+            height: 3508,
+            savePath: outputDir,
+            format: 'png',
+            saveFilename: `analise-${uuidv4()}`,
+        });
+
+        try {
+            const result = await converter(1);
+            return result.path;
+        } catch (error) {
+            this.logger.error(`Erro ao converter a página 1 na análise: ${error.message}`);
+            throw new BadRequestException('Erro ao converter PDF para imagem.');
+        }
+    }
+
     private async validatePdf(filePath: string, searchText: string): Promise<void> {
         this.logger.log(`Validando conteúdo do PDF no caminho: ${filePath}`);
         try {

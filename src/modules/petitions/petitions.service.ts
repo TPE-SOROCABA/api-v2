@@ -11,6 +11,15 @@ import { promises as fs } from 'fs';
 import { FirebaseService } from 'src/infra/firebase.service';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
+import { AnalyzeAction, decideAction, findPetitionMatches, isUsableName, PetitionMatch } from './petition-matcher';
+
+export type AnalyzeResult = {
+    action: AnalyzeAction | 'duplicate';
+    extractedName: string | null;
+    nameReadable: boolean;
+    matches: PetitionMatch[];
+    duplicateOf?: { id: string; name: string; status: string; protocol: string };
+};
 
 @Injectable()
 export class PetitionsService {
@@ -235,7 +244,7 @@ export class PetitionsService {
     }
 
     async updateUploadFile(id: string, file: Express.Multer.File, bypass: boolean = false) {
-        const hash = await this.checkFileHash(file);
+        const hash = await this.checkFileHash(file, id);
         this.logger.log(`Iniciando atualização do arquivo: ${file.originalname}${bypass ? ' (modo bypass ativo)' : ''}`);
         const petition = await this.prismaService.petitions.findUnique({
             where: { id }
@@ -264,26 +273,109 @@ export class PetitionsService {
         return updatedPetition;
     }
 
-    async checkFileHash(file: Express.Multer.File): Promise<string> {
+    /**
+     * Confere se o PDF já existe. Regras:
+     *  - petição EXCLUÍDA não bloqueia: libera o hash dela (a coluna é única) e segue;
+     *  - na atualização de uma petição (currentPetitionId), PDF igual ao que ela já tem
+     *    é recusado com mensagem própria;
+     *  - qualquer outra petição com o mesmo PDF bloqueia, como antes.
+     */
+    async checkFileHash(file: Express.Multer.File, currentPetitionId?: string): Promise<string> {
         this.logger.log(`Iniciando verificação de hash do arquivo: ${file.originalname}`);
-        const fileBuffer = await fs.readFile(file.path);
-        const hash = this.generateHash(fileBuffer);
+        const hash = await this.computeFileHash(file);
         this.logger.log(`Hash gerado para o arquivo: ${hash}`);
         const petition = await this.prismaService.petitions.findFirst({
             where: {
                 hash: hash
             }
         });
-        if (petition) {
-            this.logger.log(`Petição já existe com o hash: ${hash}`);
-            this.logger.log(`Excluindo arquivo PDF original: ${file.path}`);
-            await fs.unlink(file.path);
-            this.logger.log(`Arquivo PDF original excluído com sucesso.`);
-            throw new ConflictException(`Petição já existe nome: ${petition.name}`);
-        } else {
+        if (!petition) {
             this.logger.log(`Petição não encontrada com o hash: ${hash}`);
+            return hash;
         }
-        return hash;
+
+        if (currentPetitionId && petition.id === currentPetitionId) {
+            await this.discardUpload(file);
+            throw new ConflictException(`Este PDF é igual ao que já está nesta petição (${petition.name}). Envie a versão nova do arquivo.`);
+        }
+
+        if (petition.status === PetitionStatus.EXCLUDED) {
+            this.logger.log(`Hash pertence a petição excluída (${petition.id}); liberando o hash para o novo envio.`);
+            await this.releaseHashOfExcluded(petition.id, hash);
+            return hash;
+        }
+
+        this.logger.log(`Petição já existe com o hash: ${hash}`);
+        await this.discardUpload(file);
+        throw new ConflictException(`Petição já existe nome: ${petition.name}`);
+    }
+
+    /** Hash de uma petição excluída vira um valor que nunca mais colide (coluna `hash` é única). */
+    private async releaseHashOfExcluded(petitionId: string, hash: string): Promise<void> {
+        await this.prismaService.petitions.update({
+            where: { id: petitionId },
+            data: { hash: `${hash}-excluida-${petitionId}` },
+        });
+    }
+
+    private async computeFileHash(file: Express.Multer.File): Promise<string> {
+        const fileBuffer = await fs.readFile(file.path);
+        return this.generateHash(fileBuffer);
+    }
+
+    private async discardUpload(file: Express.Multer.File): Promise<void> {
+        this.logger.log(`Excluindo arquivo PDF original: ${file.path}`);
+        await fs.unlink(file.path).catch(() => null);
+    }
+
+    /**
+     * Analisa um PDF ANTES de enviar: lê o nome (OCR), compara com o cadastro e diz se parece
+     * atualização de alguém que já existe ou pessoa nova. Não grava nada e limpa os temporários.
+     */
+    async analyzeFile(file: Express.Multer.File, bypass: boolean = false): Promise<AnalyzeResult> {
+        let imagePath: string | null = null;
+        try {
+            const hash = await this.computeFileHash(file);
+            const sameFile = await this.prismaService.petitions.findFirst({ where: { hash } });
+            if (sameFile && sameFile.status !== PetitionStatus.EXCLUDED) {
+                return {
+                    action: 'duplicate',
+                    extractedName: sameFile.name,
+                    nameReadable: true,
+                    matches: [],
+                    duplicateOf: { id: sameFile.id, name: sameFile.name, status: sameFile.status, protocol: sameFile.protocol },
+                };
+            }
+
+            imagePath = await this.convertPdfToImagesUseCase.extractFirstPage(file.path, bypass);
+            const extractedName = await this.extractNameFromImage(imagePath);
+            const nameReadable = isUsableName(extractedName);
+
+            const candidates = nameReadable
+                ? await this.prismaService.petitions.findMany({
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        participants: {
+                            select: {
+                                name: true,
+                                congregation: { select: { name: true } },
+                                participantsGroup: { select: { group: { select: { name: true } } } },
+                            },
+                        },
+                    },
+                })
+                : [];
+
+            const matches = findPetitionMatches(extractedName, candidates);
+            return { action: decideAction(matches), extractedName, nameReadable, matches };
+        } finally {
+            await fs.unlink(file.path).catch(() => null);
+            if (imagePath) await fs.unlink(imagePath).catch(() => null);
+        }
     }
 
     private async uploadS3(imagesPath: string[], file: Express.Multer.File) {
