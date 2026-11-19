@@ -63,7 +63,8 @@ export class GroupsParticipantsService {
 
         this.assertGroupComposition(group, participant.participantsGroup.map(pg => pg.group), participant.name);
 
-        if (group.participantsGroup.length >= group.configMax) {
+        // configMax = 0 significa "sem limite de voluntários" (ex.: Zoológico)
+        if (group.configMax > 0 && group.participantsGroup.length >= group.configMax) {
             this.logger.warn(`Grupo ${group.name} já atingiu o limite de participantes`);
             throw new ConflictException(`Grupo ${group.name} já atingiu o limite de participantes`);
         }
@@ -248,7 +249,7 @@ export class GroupsParticipantsService {
         const remainingGroups = participant.participantsGroup.filter(pg => pg.groupId !== fromGroupId).map(pg => pg.group);
         this.assertGroupComposition(toGroup, remainingGroups, participant.name);
 
-        if (toGroup.participantsGroup.length >= toGroup.configMax) {
+        if (toGroup.configMax > 0 && toGroup.participantsGroup.length >= toGroup.configMax) {
             throw new ConflictException(`Grupo ${toGroup.name} já atingiu o limite de participantes`);
         }
 

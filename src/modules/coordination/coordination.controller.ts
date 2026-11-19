@@ -1,10 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Put, Query, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Put, Query, Request } from '@nestjs/common';
 import { Roles } from 'src/shared/roles.decorator';
+import { GroupSendService, groupSendKey } from 'src/shared/group-send.service';
+import { SupplyRotationService, supplyKey } from 'src/shared/supply-rotation.service';
 import { AuthenticatedRequest } from 'src/shared/types';
 import { AuditAction, AuditService } from '../audit/audit.service';
 import { FindAuditParams } from '../audit/dto/find-audit.params';
 import { MENU_PROFILES, MENU_SETTING_KEY, SETTING_KEYS, SettingsService } from '../settings/settings.service';
-import { FindHistoryParams, FindPeopleParams, UpdateAnnouncementDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
+import { FindHistoryParams, FindPeopleParams, UpdateAnnouncementDto, SupplyBulkDto, SupplyGenerateDto, SupplyMonthDto, UpdateGroupSendDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
 import { CoordinationService } from './coordination.service';
 import { HistoryService } from './history.service';
 import { PeopleService } from './people.service';
@@ -22,6 +24,8 @@ export class CoordinationController {
     private readonly auditService: AuditService,
     private readonly settingsService: SettingsService,
     private readonly historyService: HistoryService,
+    private readonly groupSendService: GroupSendService,
+    private readonly supplyService: SupplyRotationService,
   ) {}
 
   private auditSetting(req: AuthenticatedRequest, key: string, name: string, label: string) {
@@ -86,6 +90,55 @@ export class CoordinationController {
     const result = await this.settingsService.resetWaitlistWhatsapp();
     await this.auditSetting(req, SETTING_KEYS.WAITLIST_WHATSAPP, 'Mensagem de WhatsApp da Lista de Espera', 'Voltou ao modelo padrão');
     return result;
+  }
+
+  // Envio de mensagens de designação por grupo (Zoológico/grupos Especiais começam desligados)
+  @Get('group-send')
+  groupSendList() {
+    return this.groupSendService.list();
+  }
+
+  @Put('group-send/:groupId')
+  async groupSendSet(@Request() req: AuthenticatedRequest, @Param('groupId') groupId: string, @Body() body: UpdateGroupSendDto) {
+    const result = await this.groupSendService.set(groupId, body.enabled);
+    if (!result) throw new NotFoundException('Grupo não encontrado');
+    await this.auditSetting(req, groupSendKey(groupId), `Envio de mensagens: ${result.name}`, body.enabled ? 'Envio liberado' : 'Envio desligado');
+    return result;
+  }
+
+  // Rodízio de café e limpeza dos grupos do Centro (um dia da semana por mês)
+  @Get('supply')
+  supplyList(@Query('year') year?: string) {
+    const y = Number(year) || new Date().getFullYear();
+    return this.supplyService.list(y);
+  }
+
+  @Put('supply')
+  async supplySet(@Request() req: AuthenticatedRequest, @Body() body: SupplyMonthDto) {
+    await this.supplyService.set(body.year, body.month, body.weekday as any, body.morning);
+    await this.auditSetting(req, supplyKey(body.year, body.month), `Café e limpeza ${String(body.month).padStart(2, '0')}/${body.year}`, `Dia ${body.weekday}, manhã ${body.morning}`);
+    return this.supplyService.list(body.year);
+  }
+
+  @Put('supply/bulk')
+  async supplyBulk(@Request() req: AuthenticatedRequest, @Body() body: SupplyBulkDto) {
+    for (const m of body.months) await this.supplyService.set(m.year, m.month, m.weekday as any, m.morning);
+    await this.auditSetting(req, 'supply:bulk', 'Café e limpeza', `${body.months.length} meses carregados`);
+    return { saved: body.months.length };
+  }
+
+  @Put('supply/generate')
+  async supplyGenerate(@Request() req: AuthenticatedRequest, @Body() body: SupplyGenerateDto) {
+    const made = await this.supplyService.generate(body.year, body.month, body.count, body.weekday as any, body.morning);
+    await this.auditSetting(req, 'supply:generate', 'Café e limpeza', `${made.length} meses gerados a partir de ${String(body.month).padStart(2, '0')}/${body.year}`);
+    return { made };
+  }
+
+  @Delete('supply/:year/:month')
+  async supplyClear(@Request() req: AuthenticatedRequest, @Param('year') year: string, @Param('month') month: string) {
+    await this.supplyService.clear(Number(year), Number(month));
+    await this.auditSetting(req, supplyKey(Number(year), Number(month)), `Café e limpeza ${month.padStart(2, '0')}/${year}`, 'Mês removido do rodízio');
+    return { ok: true };
   }
 
   @Put('settings/menu-permissions')

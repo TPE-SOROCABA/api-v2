@@ -4,6 +4,8 @@ import { DesignationStatus, GroupStatus, GroupType, ParticipantGroupProfile, Pri
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { MessageGeneratorService, MessageType } from 'src/shared/message-generator.service';
 import { ShortLinkService } from 'src/shared/short-link.service';
+import { GroupSendService } from 'src/shared/group-send.service';
+import { SupplyRotationService } from 'src/shared/supply-rotation.service';
 import { generateRandomAssignment, isSameAsPreviousDesignation } from './random-assignment';
 import { SqsDispatcherService } from 'src/infra/sqs/sqs-dispatcher.service';
 import { WEEKDAY_PT_BR } from 'src/shared/weekday.util';
@@ -55,7 +57,15 @@ export class DesignationWriteService {
     private readonly messages: MessageGeneratorService,
     private readonly shortLinks: ShortLinkService,
     private readonly viewService: DesignationViewService,
+    // opcional só para os scripts de conferência que montam o serviço à mão; no Nest sempre vem injetado
+    private readonly groupSend?: GroupSendService,
+    private readonly supply?: SupplyRotationService,
   ) {}
+
+  /** Envio de mensagens liberado para o grupo? (Coordenação > Envio de mensagens; grupo Especial começa desligado.) */
+  private async isGroupSendEnabled(group: { id: string; type: GroupType }): Promise<boolean> {
+    return this.groupSend ? this.groupSend.isEnabled(group) : true;
+  }
 
   // ------------------------------------------------------------------------------------
   // POST /designations?groupId=
@@ -173,8 +183,9 @@ export class DesignationWriteService {
       },
     });
 
-    // Notificação de cancelamento só quando o grupo tem WhatsApp configurado.
-    if (designation.group.whatsappId) {
+    // Notificação de cancelamento só quando o grupo tem WhatsApp configurado e o envio do grupo está liberado
+    // (Coordenação > Envio de mensagens; grupo Especial começa desligado).
+    if (designation.group.whatsappId && (await this.isGroupSendEnabled(designation.group))) {
       const message = this.messages.generate(MessageType.CANCELLATION_GROUP, {
         recipientName: designation.group.name,
         details: `${WEEKDAY_PT_BR[designation.group.configWeekday]}, das *${designation.group.configStartHour} às ${designation.group.configEndHour}*`,
@@ -436,7 +447,9 @@ export class DesignationWriteService {
 
     // "sem destinatário" não é erro: a legacy simplesmente não avisa ninguém e
     // ainda assim marca a designação como enviada.
-    const recipients = this.recipientsOf(view);
+    // Envio desligado para o grupo (ex.: Zoológico): nada é enviado, mas a designação segue normalmente.
+    const sendEnabled = await this.isGroupSendEnabled(designation.group);
+    const recipients = sendEnabled ? this.recipientsOf(view) : [];
     if (recipients.length > 0) {
       const frontendUrl = process.env.FRONTEND_URL || 'https://app.tpedigital.com.br';
       const apiUrl = process.env.API_URL || 'https://api.tpedigital.com.br/dev';
@@ -450,6 +463,8 @@ export class DesignationWriteService {
         details: `${WEEKDAY_PT_BR[designation.group.configWeekday]}, das *${designation.group.configStartHour} às ${designation.group.configEndHour}*`,
         generalLink,
         loginLink: myLink,
+        // rodízio de café/limpeza do mês (só grupos do Centro no dia da semana do mês); vazio = mensagem igual à de sempre
+        supplyLine: this.supply ? await this.supply.messageLine(designation.group, designation.designationDate ?? undefined) : '',
       });
 
       for (const phone of recipients) {

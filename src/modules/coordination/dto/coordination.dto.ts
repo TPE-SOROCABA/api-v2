@@ -1,6 +1,6 @@
 import { ParticipantProfile, PetitionStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsObject, ValidateNested, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value) || undefined;
 
@@ -30,6 +30,16 @@ export class FindPeopleParams {
   @IsString({ message: 'groupId deve ser texto' })
   @Transform(trim)
   groupId?: string;
+
+  /** none = sem nenhuma data de treinamento; has = com data. Treinamento não tem validade. */
+  @IsOptional()
+  @IsIn(['none', 'has'], { message: 'training deve ser none ou has' })
+  training?: 'none' | 'has';
+
+  /** never = cadastro nunca atualizado; stale = nunca atualizou ou atualizou há mais de 6 meses */
+  @IsOptional()
+  @IsIn(['never', 'stale'], { message: 'profileUpdate deve ser never ou stale' })
+  profileUpdate?: 'never' | 'stale';
 
   @IsOptional()
   @Type(() => Number)
@@ -71,6 +81,48 @@ export class UpdateWhatsappTemplateDto {
   @MinLength(10, { message: 'A mensagem precisa ter pelo menos 10 caracteres' })
   @MaxLength(600, { message: 'A mensagem pode ter no máximo 600 caracteres' })
   message: string;
+}
+
+export class UpdateGroupSendDto {
+  @IsBoolean({ message: 'enabled deve ser verdadeiro ou falso' })
+  enabled: boolean;
+}
+
+const SUPPLY_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+/** Um mês do rodízio de café/limpeza (Centro). `morning` = o que o grupo da manhã cuida; a tarde cuida do outro. */
+export class SupplyMonthDto {
+  @IsInt({ message: 'year deve ser inteiro' })
+  @Min(2024)
+  @Max(2100)
+  year: number;
+
+  @IsInt({ message: 'month deve ser inteiro' })
+  @Min(1)
+  @Max(12)
+  month: number;
+
+  @IsIn(SUPPLY_DAYS, { message: 'weekday deve ser de segunda a sábado (MONDAY..SATURDAY)' })
+  weekday: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY';
+
+  @IsIn(['CAFE', 'LIMPEZA'], { message: 'morning deve ser CAFE ou LIMPEZA' })
+  morning: 'CAFE' | 'LIMPEZA';
+}
+
+export class SupplyBulkDto {
+  @IsArray()
+  @ArrayMaxSize(36)
+  @ValidateNested({ each: true })
+  @Type(() => SupplyMonthDto)
+  months: SupplyMonthDto[];
+}
+
+export class SupplyGenerateDto extends SupplyMonthDto {
+  /** quantos meses gerar a partir de year/month */
+  @IsInt({ message: 'count deve ser inteiro' })
+  @Min(1)
+  @Max(24)
+  count: number;
 }
 
 export class UpdateMenuPermissionsDto {

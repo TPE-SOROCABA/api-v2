@@ -25,6 +25,13 @@ export class PeopleService {
       ...(params.profile && { profile: params.profile }),
       ...(params.petitionStatus && { petitions: { status: params.petitionStatus } }),
       ...(params.groupId && { participantsGroup: { some: { groupId: params.groupId } } }),
+      // mesma regra da Visão geral: treinamento não expira, "sem" = nenhuma data registrada
+      ...(params.training === 'none' && { lastTrainingDate: null }),
+      ...(params.training === 'has' && { lastTrainingDate: { not: null } }),
+      // data da última atualização do cadastro (pela pessoa ou pela coordenação)
+      ...(params.profileUpdate === 'never' && { profileUpdatedAt: null }),
+      // AND à parte para não colidir com o OR da busca por texto
+      ...(params.profileUpdate === 'stale' && { AND: [{ OR: [{ profileUpdatedAt: null }, { profileUpdatedAt: { lt: new Date(Date.now() - 183 * 86_400_000) } }] }] }),
       ...(params.q && {
         OR: [
           { name: { contains: params.q, mode: 'insensitive' } },
@@ -51,8 +58,9 @@ export class PeopleService {
           profile: true,
           profilePhoto: true,
           lastTrainingDate: true,
+          profileUpdatedAt: true,
           congregation: { select: { id: true, name: true } },
-          petitions: { select: { id: true, status: true } },
+          petitions: { select: { id: true, status: true, createdAt: true } },
           participantsGroup: { select: { profile: true, group: { select: { id: true, name: true, type: true } } } },
         },
       }),

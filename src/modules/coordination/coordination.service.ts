@@ -96,9 +96,15 @@ export class CoordinationService {
       }),
       this.waitlistService.getWaitlist({}),
       // faltas: mesma regra do Painel de Faltas (semana com presença opcional não conta)
-      this.prisma.incidentHistories.count({ where: { designation: { mandatoryPresence: true } } }),
+      // só conta falta de quem está em algum grupo agora e de grupo que não é Especial (Zoológico)
       this.prisma.incidentHistories.count({
-        where: { designation: { mandatoryPresence: true, designationDate: { gte: daysAgo(RECENT_INCIDENTS_DAYS) } } },
+        where: { designation: { mandatoryPresence: true, group: { type: { not: GroupType.SPECIAL } } }, participant: { participantsGroup: { some: {} } } },
+      }),
+      this.prisma.incidentHistories.count({
+        where: {
+          designation: { mandatoryPresence: true, group: { type: { not: GroupType.SPECIAL } }, designationDate: { gte: daysAgo(RECENT_INCIDENTS_DAYS) } },
+          participant: { participantsGroup: { some: {} } },
+        },
       }),
     ]);
 
@@ -274,7 +280,8 @@ export class CoordinationService {
         title: 'Ativos sem treinamento',
         description: 'Voluntários ativos sem nenhuma data de treinamento registrada.',
         count: activeWithoutTraining.length,
-        href: '/grupos',
+        // abre Coordenação > Pessoas já filtrada (ativos = petição ativa, sem data de treinamento)
+        href: '/coordenacao?tab=people&training=none&petitionStatus=ACTIVE',
         items: sample(activeWithoutTraining),
       },
     ].filter((a) => a.count > 0);

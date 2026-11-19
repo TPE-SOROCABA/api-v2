@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/infra/prisma/prisma.service';
 import { TransactionLogger } from 'src/infra/transaction.logger';
 import { FindAllParams } from './dto/find-params.dto';
-import { ParticipantSex, Petitions, PetitionStatus, Weekday } from '@prisma/client';
+import { GroupType, ParticipantSex, Petitions, PetitionStatus, Weekday } from '@prisma/client';
 import { AvailabilityItem } from '../participants/dto/create-participant.dto';
 
 const WEEKDAY = {
@@ -59,13 +59,14 @@ export class DashboardService {
             },
           },
         },
-        ...(params.groupId && {
-          where: {
-            designation: {
-              groupId: params.groupId,
-            },
+        // falta só conta de quem está em algum grupo agora, e nunca de grupo Especial (Zoológico)
+        where: {
+          designation: {
+            group: { type: { not: GroupType.SPECIAL } },
+            ...(params.groupId && { groupId: params.groupId }),
           },
-        }),
+          participant: { participantsGroup: { some: {} } },
+        },
       }),
     ]);
     const participants = participantsGroups.map((pg) => pg.participant);
@@ -183,7 +184,9 @@ export class DashboardService {
           LEFT JOIN assignments a ON a.designations_id = d.id
           LEFT JOIN assignments_participants ap ON ap.assignment_id = a.id
           LEFT JOIN incident_histories ih ON ih.designation_id = d.id
+            AND EXISTS (SELECT 1 FROM participants_groups pg WHERE pg.participant_id = ih.participant_id)
           WHERE ($1::text IS NULL OR d.group_id = $1::text)
+            AND NOT EXISTS (SELECT 1 FROM groups sg WHERE sg.id = d.group_id AND sg.type = 'SPECIAL')
           GROUP BY d.id
         ) AS sub;
       `,

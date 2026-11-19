@@ -1,4 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Post, Patch, Put, Query, UseGuards, HttpCode, HttpStatus, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Patch, Put, Query, UseGuards, HttpCode, HttpStatus, UsePipes, ValidationPipe } from '@nestjs/common';
+import { ParticipantSelfService } from './participant-self.service';
+import { SupplyRotationService } from 'src/shared/supply-rotation.service';
+import { PrismaService } from 'src/infra/prisma/prisma.service';
+import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { DesignationsService } from './designations.service';
 import { DesignationViewService } from './designation-view.service';
 import { DesignationWriteService } from './designation-write.service';
@@ -23,6 +27,9 @@ export class DesignationsController {
     private readonly designationsService: DesignationsService,
     private readonly view: DesignationViewService,
     private readonly write: DesignationWriteService,
+    private readonly self: ParticipantSelfService,
+    private readonly supply: SupplyRotationService,
+    private readonly prismaService: PrismaService,
   ) {}
 
   @Get(':id')
@@ -48,6 +55,39 @@ export class DesignationsController {
   @UsePipes(new ValidationPipe({ transform: true }))
   participantDesignation(@Param() params: FindOneDesignationParams, @Param('participantId') participantId: string) {
     return this.view.findParticipantEventEntry(params.id, participantId);
+  }
+
+  /**
+   * "Meus dados" do link individual da designação: a pessoa confere e atualiza o próprio cadastro (sem
+   * telefone). Público como o resto da tela do voluntário, mas só vale para quem é do grupo da designação.
+   */
+  /**
+   * Faixa vermelha "neste mês o seu grupo cuida do café/limpeza". Pública como as telas de designação
+   * (só devolve o aviso do grupo daquela designação; sem aviso devolve { duty: null }).
+   */
+  @Public()
+  @Get(':id/supply-duty')
+  async supplyDuty(@Param('id', ParseUUIDPipe) id: string) {
+    const d = await this.prismaService.designations.findUnique({ where: { id }, select: { designationDate: true, group: { select: { type: true, configWeekday: true, configStartHour: true } } } });
+    if (!d) return { duty: null };
+    const duty = await this.supply.dutyFor(d.group, d.designationDate ?? undefined);
+    return { duty: duty ? { task: duty.task, label: duty.label, month: duty.month, year: duty.year } : null };
+  }
+
+  @Public()
+  @Get(':id/participants/:participantId/profile')
+  ownProfile(@Param('id', ParseUUIDPipe) id: string, @Param('participantId', ParseUUIDPipe) participantId: string) {
+    return this.self.get(id, participantId);
+  }
+
+  @Public()
+  @Patch(':id/participants/:participantId/profile')
+  updateOwnProfile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('participantId', ParseUUIDPipe) participantId: string,
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) body: UpdateOwnProfileDto,
+  ) {
+    return this.self.update(id, participantId, body);
   }
 
   @Delete(':id')

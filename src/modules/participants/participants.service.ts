@@ -208,7 +208,8 @@ export class ParticipantsService {
     this.prisma.participants.findUnique({ where: { id } });
     const entity = await this.prisma.participants.update({
       where: { id },
-      data: updateParticipantDto,
+      // profileUpdatedAt: data da última atualização do cadastro (aparece em Petições e na aba Pessoas)
+      data: { ...updateParticipantDto, profileUpdatedAt: new Date() },
     });
     const participant = Participant.build(entity);
     await this.prisma.petitions.updateMany({

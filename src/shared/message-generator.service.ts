@@ -19,6 +19,8 @@ export interface MessageData {
   code?: string;
   loginLink?: string;
   generalLink?: string;
+  /** linha extra opcional (ex.: rodízio de café/limpeza do mês); vazia = a mensagem sai exatamente como sempre */
+  supplyLine?: string;
 }
 
 /**
@@ -62,7 +64,7 @@ export class MessageGeneratorService {
       '📢 TPE Digital | Designação Arquivada\n\n[GREETING], [NAME]!\n\nA designação *[DETAILS]* foi arquivada e encerrada no sistema.\n\nA partir de agora, não é mais possível realizar edições nesta designação.\n\n[CLOSING]',
     ],
     [MessageType.INVITATION_GROUP_TEXT]: [
-      '📢 *TPE Digital | Designação disponível*\n\n[GREETING] 😊\n\nA designação de [DETAILS] já está disponível.\n\n🔗 *Para consultar os detalhes, acesse os links abaixo:*\n\n🌐 *Designação Geral*\n[GENERAL_LINK]\n\n👤 *Minha Designação*\n[LOGIN_LINK]\n\nEm caso de dúvidas técnicas ou necessidade de atualização de dados, entre em contato com o SAC TPE Digital.\n\n[CLOSING]',
+      '📢 *TPE Digital | Designação disponível*\n\n[GREETING] 😊\n\nA designação de [DETAILS] já está disponível.[SUPPLY]\n\n🔗 *Para consultar os detalhes, acesse os links abaixo:*\n\n🌐 *Designação Geral*\n[GENERAL_LINK]\n\n👤 *Minha Designação*\n[LOGIN_LINK]\n\nEm caso de dúvidas técnicas ou necessidade de atualização de dados, entre em contato com o SAC TPE Digital.\n\n[CLOSING]',
     ],
   };
 
@@ -76,6 +78,9 @@ export class MessageGeneratorService {
     if (data.details) {
       message = this.replaceAll(message, '[DETAILS]', data.details);
     }
+
+    // só o template INVITATION_GROUP_TEXT tem [SUPPLY]; sem linha, o marcador some e o texto fica igual ao de antes
+    message = this.replaceAll(message, '[SUPPLY]', data.supplyLine ? `\n\n${data.supplyLine}` : '');
 
     if (data.code) {
       message = this.replaceAll(message, '[CODE]', data.code);

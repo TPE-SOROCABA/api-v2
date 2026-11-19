@@ -34,6 +34,7 @@ model Participants {
   cpf               String?
   civilStatus       CivilStatus?        @map("civil_status")
   lastTrainingDate  DateTime?           @map("last_training_date")
+  profileUpdatedAt  DateTime?           @map("profile_updated_at")
 
   congregation            Congregations?            @relation(fields: [congregationId], references: [id])
   assignmentsParticipants AssignmentsParticipants[]

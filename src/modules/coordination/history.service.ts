@@ -41,8 +41,21 @@ interface WorkedRow {
 interface FaltasRow {
   participantId: string;
   groupId: string;
+  /** faltas que entram nos números (pessoa em algum grupo agora e grupo que não é Especial) */
   faltas: number;
+  /** todas as faltas registradas, para a ficha da pessoa */
+  faltasAll: number;
 }
+
+/**
+ * Regra de contagem de faltas (Marcelo, 19/11/2026): a falta fica na ficha da pessoa, mas só entra em
+ * número nenhum enquanto ela estiver em ALGUM grupo agora (se mudou de dia ou entrou em outro, todas
+ * contam). Falta de designação de grupo Especial (ex.: Zoológico) nunca conta.
+ * Usa os aliases `ih` (incident_histories) e `d` (designations).
+ */
+const FALTA_CONTA_SQL = `
+  AND EXISTS (SELECT 1 FROM participants_groups pg WHERE pg.participant_id = ih.participant_id)
+  AND NOT EXISTS (SELECT 1 FROM groups sg WHERE sg.id = d.group_id AND sg.type = 'SPECIAL')`;
 
 function sinceDate(months: number): Date {
   const d = new Date();
@@ -81,7 +94,7 @@ export class HistoryService {
         FROM incident_histories ih
         JOIN designations d ON d.id = ih.designation_id
         WHERE d.mandatory_presence = true AND d.status <> 'CANCELLED' AND d.designation_date >= $1::timestamp
-          AND ($2::text[] IS NULL OR ih.participant_id = ANY($2::text[]))
+          AND ($2::text[] IS NULL OR ih.participant_id = ANY($2::text[]))${FALTA_CONTA_SQL}
       )
       SELECT i.participant_id AS "participantId", i.group_id AS "groupId", g.name AS "groupName", g.type::text AS "groupType",
         MIN(i.designation_date) AS "firstAt", MAX(i.designation_date) AS "lastAt", COUNT(*)::int AS "designations"
@@ -98,7 +111,9 @@ export class HistoryService {
   private loadFaltas(since: Date, participantIds?: string[]) {
     return this.prisma.$queryRawUnsafe<FaltasRow[]>(
       `
-      SELECT ih.participant_id AS "participantId", d.group_id AS "groupId", COUNT(*)::int AS "faltas"
+      SELECT ih.participant_id AS "participantId", d.group_id AS "groupId",
+        COUNT(*) FILTER (WHERE TRUE${FALTA_CONTA_SQL})::int AS "faltas",
+        COUNT(*)::int AS "faltasAll"
       FROM incident_histories ih
       JOIN designations d ON d.id = ih.designation_id
       WHERE d.mandatory_presence = true
@@ -120,9 +135,10 @@ export class HistoryService {
           SELECT ap.participant_id, d.id FROM assignments_participants ap
           JOIN assignments a ON a.id = ap.assignment_id JOIN designations d ON d.id = a.designations_id
           WHERE d.designation_date >= $1::timestamp AND d.status <> 'CANCELLED'
+            AND NOT EXISTS (SELECT 1 FROM groups sg WHERE sg.id = d.group_id AND sg.type = 'SPECIAL')
           UNION
           SELECT ih.participant_id, d.id FROM incident_histories ih JOIN designations d ON d.id = ih.designation_id
-          WHERE d.mandatory_presence = true AND d.status <> 'CANCELLED' AND d.designation_date >= $1::timestamp
+          WHERE d.mandatory_presence = true AND d.status <> 'CANCELLED' AND d.designation_date >= $1::timestamp${FALTA_CONTA_SQL}
         ) involved
         `,
         since,
@@ -130,7 +146,7 @@ export class HistoryService {
       this.prisma.$queryRawUnsafe<{ n: number }[]>(
         `
         SELECT COUNT(*)::int AS "n" FROM incident_histories ih JOIN designations d ON d.id = ih.designation_id
-        WHERE d.mandatory_presence = true AND d.designation_date >= $1::timestamp
+        WHERE d.mandatory_presence = true AND d.designation_date >= $1::timestamp${FALTA_CONTA_SQL}
         `,
         since,
       ),
@@ -171,8 +187,10 @@ export class HistoryService {
     ]);
 
     const groupsWorked = this.toWorkedGroups(workedRows, faltasRows);
-    const designations = groupsWorked.reduce((s, g) => s + g.designations, 0);
+    // dias trabalhados para a taxa: grupo Especial (ex.: Zoológico) não entra, igual às faltas
+    const designations = groupsWorked.filter((g) => g.type !== GroupType.SPECIAL).reduce((s, g) => s + g.designations, 0);
     const faltas = faltasRows.reduce((s, f) => s + Number(f.faltas), 0);
+    const faltasRegistered = faltasRows.reduce((s, f) => s + Number(f.faltasAll), 0);
 
     return {
       participant: { id: participant.id, name: participant.name },
@@ -184,6 +202,9 @@ export class HistoryService {
       estimatedDepartures: countDepartures(groupsWorked),
       faltas: {
         total: faltas,
+        // todas as faltas na ficha; só `total` entra nos números (pessoa sem grupo / grupo Especial ficam de fora)
+        totalRegistered: faltasRegistered,
+        countsInNumbers: faltas === faltasRegistered,
         daysWorked: designations,
         perDay: designations > 0 ? faltas / designations : null,
         baselinePerDay: base.perDay,
@@ -238,7 +259,7 @@ export class HistoryService {
         const rows = byPerson.get(pid)!;
         const mine = faltasRows.filter((f) => f.participantId === pid);
         const groupsWorked = this.toWorkedGroups(rows, mine);
-        const designations = groupsWorked.reduce((s, g) => s + g.designations, 0);
+        const designations = groupsWorked.filter((g) => g.type !== GroupType.SPECIAL).reduce((s, g) => s + g.designations, 0);
         const faltas = mine.reduce((s, f) => s + Number(f.faltas), 0);
         const perDay = designations > 0 ? faltas / designations : null;
         const departures = countDepartures(groupsWorked);

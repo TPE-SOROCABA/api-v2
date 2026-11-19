@@ -41,21 +41,28 @@ export class IncidentsService {
     // mandatoryPresence: false => capitão marcou a semana como "Presença Opcional".
     // Faltas dessa designação não devem contar no Painel de Faltas (sempre aplicado,
     // mesmo sem outros filtros de grupo/data).
+    // Grupo Especial (ex.: Zoológico) não conta falta em número nenhum.
     const designationIs: Prisma.DesignationsWhereInput = {
       mandatoryPresence: true,
+      group: { type: { not: GroupType.SPECIAL } },
       ...(filter.groupIds && { groupId: { in: filter.groupIds } }),
       ...((from || to) && {
         designationDate: { ...(from && { gte: from }), ...(to && { lte: to }) },
       }),
     };
 
+    // Falta só entra nos números se a pessoa está em ALGUM grupo agora (se mudou de dia ou entrou em
+    // outro grupo, todas as faltas contam). A ficha da pessoa (participantId) mostra tudo.
     return {
       designation: { is: designationIs },
       ...(filter.participantId
         ? { participantId: filter.participantId }
-        : filter.participantName && {
+        : {
             participant: {
-              is: { name: { contains: filter.participantName, mode: 'insensitive' } },
+              is: {
+                participantsGroup: { some: {} },
+                ...(filter.participantName && { name: { contains: filter.participantName, mode: 'insensitive' as const } }),
+              },
             },
           }),
     };
@@ -112,8 +119,11 @@ export class IncidentsService {
     const to = filter.dateTo ? `${filter.dateTo} 23:59:59.999` : null;
 
     // d.mandatory_presence = true: exclui faltas de designações marcadas "Presença Opcional".
+    // Só conta falta de quem está em algum grupo agora, e nunca de designação de grupo Especial.
     const dateWhere = `
         AND d.mandatory_presence = true
+        AND NOT EXISTS (SELECT 1 FROM groups sg WHERE sg.id = d.group_id AND sg.type = 'SPECIAL')
+        AND EXISTS (SELECT 1 FROM participants_groups pg WHERE pg.participant_id = ih.participant_id)
         AND ($3::timestamp IS NULL OR d.designation_date >= $3::timestamp)
         AND ($4::timestamp IS NULL OR d.designation_date <= $4::timestamp)`;
 
@@ -189,7 +199,9 @@ export class IncidentsService {
         AND ($2::timestamp IS NULL OR d.designation_date <= $2::timestamp)
       -- "dias trabalhados" (designations) conta normalmente mesmo em semana opcional;
       -- só a FALTA (numerador) de uma designação "Presença Opcional" não entra na média.
-      LEFT JOIN incident_histories ih ON ih.designation_id = d.id AND d.mandatory_presence = true
+      -- e a falta só conta se a pessoa está em algum grupo agora; grupo Especial nunca conta falta.
+      LEFT JOIN incident_histories ih ON ih.designation_id = d.id AND d.mandatory_presence = true AND g.type <> 'SPECIAL'
+        AND EXISTS (SELECT 1 FROM participants_groups pg WHERE pg.participant_id = ih.participant_id)
       GROUP BY g.id, g.name, g.type
       `,
       from,
