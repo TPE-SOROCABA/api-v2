@@ -62,16 +62,18 @@ export class DesignationsController {
    * telefone). Público como o resto da tela do voluntário, mas só vale para quem é do grupo da designação.
    */
   /**
-   * Faixa vermelha "neste mês o seu grupo cuida do café/limpeza". Pública como as telas de designação
-   * (só devolve o aviso do grupo daquela designação; sem aviso devolve { duty: null }).
+   * Faixa vermelha "neste mês o seu grupo cuida do café/limpeza" (`duty`) e faixa amarela "no próximo mês..."
+   * (`next`). Pública como as telas de designação (só o aviso do grupo daquela designação; sem aviso = null).
    */
   @Public()
   @Get(':id/supply-duty')
   async supplyDuty(@Param('id', ParseUUIDPipe) id: string) {
     const d = await this.prismaService.designations.findUnique({ where: { id }, select: { designationDate: true, group: { select: { type: true, configWeekday: true, configStartHour: true } } } });
-    if (!d) return { duty: null };
-    const duty = await this.supply.dutyFor(d.group, d.designationDate ?? undefined);
-    return { duty: duty ? { task: duty.task, label: duty.label, month: duty.month, year: duty.year } : null };
+    if (!d) return { duty: null, next: null };
+    const ref = d.designationDate ?? undefined;
+    const [duty, next] = await Promise.all([this.supply.dutyFor(d.group, ref), this.supply.nextDutyFor(d.group, ref)]);
+    const pick = (x: typeof duty) => (x ? { task: x.task, label: x.label, month: x.month, year: x.year } : null);
+    return { duty: pick(duty), next: pick(next) };
   }
 
   @Public()

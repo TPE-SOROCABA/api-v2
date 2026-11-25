@@ -58,6 +58,17 @@ export class SupplyRotationService {
   async dutyFor(group: { type: GroupType; configWeekday: Weekday; configStartHour: string }, ref: Date = new Date()): Promise<{ task: SupplyTask; label: string; year: number; month: number } | null> {
     if (group.type !== GroupType.MAIN) return null;
     const { year, month } = brMonth(ref);
+    return this.dutyForMonth(group, year, month);
+  }
+
+  /** O que esse grupo cuida no mês SEGUINTE ao de `ref` (faixa amarela: "no próximo mês..."). */
+  async nextDutyFor(group: { type: GroupType; configWeekday: Weekday; configStartHour: string }, ref: Date = new Date()): Promise<{ task: SupplyTask; label: string; year: number; month: number } | null> {
+    const { year, month } = brMonth(ref);
+    return month === 12 ? this.dutyForMonth(group, year + 1, 1) : this.dutyForMonth(group, year, month + 1);
+  }
+
+  private async dutyForMonth(group: { type: GroupType; configWeekday: Weekday; configStartHour: string }, year: number, month: number): Promise<{ task: SupplyTask; label: string; year: number; month: number } | null> {
+    if (group.type !== GroupType.MAIN) return null;
     const cur = await this.getMonth(year, month);
     if (!cur || cur.weekday !== group.configWeekday) return null;
     const task = isMorning(group.configStartHour) ? cur.morning : other(cur.morning);
