@@ -1,12 +1,12 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Put, Query, Request } from '@nestjs/common';
 import { Roles } from 'src/shared/roles.decorator';
 import { GroupSendService, groupSendKey } from 'src/shared/group-send.service';
-import { SupplyRotationService, supplyKey } from 'src/shared/supply-rotation.service';
+import { SupplyRotationService, cleaningKey, supplyKey } from 'src/shared/supply-rotation.service';
 import { AuthenticatedRequest } from 'src/shared/types';
 import { AuditAction, AuditService } from '../audit/audit.service';
 import { FindAuditParams } from '../audit/dto/find-audit.params';
 import { MENU_PROFILES, MENU_SETTING_KEY, SETTING_KEYS, SettingsService } from '../settings/settings.service';
-import { FindHistoryParams, FindPeopleParams, UpdateAnnouncementDto, SupplyBulkDto, SupplyGenerateDto, SupplyMonthDto, UpdateGroupSendDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
+import { CleaningGenerateDto, CleaningMonthDto, FindHistoryParams, FindPeopleParams, UpdateAnnouncementDto, SupplyBulkDto, SupplyGenerateDto, SupplyMonthDto, UpdateGroupSendDto, UpdateMenuPermissionsDto, UpdateProfileDto, UpdateTrainingDto, UpdateWhatsappTemplateDto } from './dto/coordination.dto';
 import { CoordinationService } from './coordination.service';
 import { HistoryService } from './history.service';
 import { PeopleService } from './people.service';
@@ -131,6 +131,21 @@ export class CoordinationController {
   async supplyGenerate(@Request() req: AuthenticatedRequest, @Body() body: SupplyGenerateDto) {
     const made = await this.supplyService.generate(body.year, body.month, body.count, body.weekday as any, body.morning);
     await this.auditSetting(req, 'supply:generate', 'Café e limpeza', `${made.length} meses gerados a partir de ${String(body.month).padStart(2, '0')}/${body.year}`);
+    return { made };
+  }
+
+  // Limpeza da sala: um grupo do Centro por mês
+  @Put('supply/cleaning')
+  async cleaningSet(@Request() req: AuthenticatedRequest, @Body() body: CleaningMonthDto) {
+    await this.supplyService.setCleaning(body.year, body.month, body.groupId || null);
+    await this.auditSetting(req, cleaningKey(body.year, body.month), `Limpeza da sala ${String(body.month).padStart(2, '0')}/${body.year}`, body.groupId ? `Grupo ${body.groupId}` : 'Mês sem limpeza da sala');
+    return this.supplyService.list(body.year);
+  }
+
+  @Put('supply/cleaning/generate')
+  async cleaningGenerate(@Request() req: AuthenticatedRequest, @Body() body: CleaningGenerateDto) {
+    const made = await this.supplyService.generateCleaning(body.year, body.month, body.count, body.groupId);
+    await this.auditSetting(req, 'cleaning:generate', 'Limpeza da sala', `${made.length} meses gerados a partir de ${String(body.month).padStart(2, '0')}/${body.year}`);
     return { made };
   }
 

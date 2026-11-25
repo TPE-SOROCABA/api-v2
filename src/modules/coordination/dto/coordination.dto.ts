@@ -125,6 +125,43 @@ export class SupplyGenerateDto extends SupplyMonthDto {
   count: number;
 }
 
+/** Limpeza da sala: um grupo do Centro por mês (groupId vazio = tira o mês do rodízio). */
+export class CleaningMonthDto {
+  @IsInt({ message: 'year deve ser inteiro' })
+  @Min(2024)
+  @Max(2100)
+  year: number;
+
+  @IsInt({ message: 'month deve ser inteiro' })
+  @Min(1)
+  @Max(12)
+  month: number;
+
+  @IsOptional()
+  @IsString()
+  groupId?: string | null;
+}
+
+export class CleaningGenerateDto {
+  @IsInt({ message: 'year deve ser inteiro' })
+  @Min(2024)
+  @Max(2100)
+  year: number;
+
+  @IsInt({ message: 'month deve ser inteiro' })
+  @Min(1)
+  @Max(12)
+  month: number;
+
+  @IsString({ message: 'escolha o grupo que começa' })
+  groupId: string;
+
+  @IsInt({ message: 'count deve ser inteiro' })
+  @Min(1)
+  @Max(24)
+  count: number;
+}
+
 export class UpdateMenuPermissionsDto {
   /** { ADMIN_ANALYST: string[], CAPTAIN: string[], ASSISTANT_CAPTAIN: string[] } — validado no SettingsService */
   @IsObject({ message: 'permissions deve ser um objeto' })

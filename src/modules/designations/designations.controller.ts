@@ -68,12 +68,10 @@ export class DesignationsController {
   @Public()
   @Get(':id/supply-duty')
   async supplyDuty(@Param('id', ParseUUIDPipe) id: string) {
-    const d = await this.prismaService.designations.findUnique({ where: { id }, select: { designationDate: true, group: { select: { type: true, configWeekday: true, configStartHour: true } } } });
-    if (!d) return { duty: null, next: null };
-    const ref = d.designationDate ?? undefined;
-    const [duty, next] = await Promise.all([this.supply.dutyFor(d.group, ref), this.supply.nextDutyFor(d.group, ref)]);
-    const pick = (x: typeof duty) => (x ? { task: x.task, label: x.label, month: x.month, year: x.year } : null);
-    return { duty: pick(duty), next: pick(next) };
+    const d = await this.prismaService.designations.findUnique({ where: { id }, select: { designationDate: true, group: { select: { id: true, type: true, configWeekday: true, configStartHour: true } } } });
+    if (!d) return { duty: null, next: null, cleaning: null, cleaningNext: null };
+    // duty/next = compras (itens do café ou produtos de limpeza); cleaning/cleaningNext = limpeza da sala
+    return this.supply.dutiesFor(d.group, d.designationDate ?? undefined);
   }
 
   @Public()
